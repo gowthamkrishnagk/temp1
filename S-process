@@ -1,0 +1,948 @@
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+<beans>
+    <bean id="agencyUpsertProcess" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+        <description>agency Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="AgencyUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+              <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+                <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="200"/>
+                <entry key="sfdc.externalIdField" value="Master_Agency_ID__c"/>
+                <entry key="sfdc.entity" value="Account"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="True"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\AgencyUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\Agency\Agency.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Agency"/>
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+<bean id="agentActiveUpsertProcess" class="com.salesforce.dataloader.process.ProcessRunner"  scope="singleton">
+        <description>agent Active Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="agentUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="50"/>
+                <entry key="sfdc.externalIdField" value="Master_Agent_ID__c"/>
+                <entry key="sfdc.entity" value="Contact"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="true"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\agentUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\Agent\Agent_Active.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Agent Active" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+    <bean id="agentSalesUpsertProcess" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+        <description>agent Sales Upsert job for S and I Platform.</description>
+        <property name="name" value="agentUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="50"/>
+                <entry key="sfdc.externalIdField" value="Master_Agent_ID__c"/>
+                <entry key="sfdc.entity" value="Contact"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="true"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\agentSalesUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\AgentSales\agentsalesdatasalesforce.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\AgentSales" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+	<bean id="agentTerminatedUpsertProcess" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+        <description>agent terminated Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="agentUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="50"/>
+                <entry key="sfdc.externalIdField" value="Master_Agent_ID__c"/>
+                <entry key="sfdc.entity" value="Contact"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="true"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\agentUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\Agent\Agent_Terminated.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Agent terminated" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean> 
+
+	 <bean id="annuityProdMixUpsertProcess"
+          class="com.salesforce.dataloader.process.ProcessRunner"
+          scope="singleton">
+        <description>Annuity Product Mix Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="annuityProdMixUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>                 
+		<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="200"/>
+                <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+                <entry key="sfdc.entity" value="NLG_OBJ_AnnuityProductMix__c"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="True"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\AnnuityProductMixUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\Annuity Product Mix\Annuity_Product_Mix.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Annuity Product Mix" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+        <bean id="homeOffContLstUpsertProcess"
+          class="com.salesforce.dataloader.process.ProcessRunner"
+          scope="singleton">
+        <description>Home Office Contact List Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="homeOffContLstUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+                 <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                 <entry key="sfdc.timeoutSecs" value="600"/>
+                 <entry key="sfdc.loadBatchSize" value="200"/>
+                 <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+                 <entry key="sfdc.entity" value="Home_Office_Contact_List__c"/>
+                 <entry key="process.operation" value="upsert"/>
+		 <entry key="sfdc.insertNulls" value="True"/>
+                 <entry key="process.mappingFile" value="D:\NLG\Config\SDL\HomeOffContLstUpsertMap.sdl"/>
+                 <entry key="dataAccess.name" value="D:\NLG\Source Data\Home Office Contacts\Home_Office_Contact_List.csv"/>
+                 <entry key="dataAccess.type" value="csvRead"/>
+                 <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                 <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Home Office Contact List" />
+		 <entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+	        <bean id="leadUpsertProcess"
+          class="com.salesforce.dataloader.process.ProcessRunner"
+          scope="singleton">
+        <description>lead Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="leadUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+		<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+                <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="1"/>
+                <entry key="sfdc.externalIdField" value="SSN_Tax_ID__c"/>
+                <entry key="sfdc.entity" value="Lead"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="True"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\LeadUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\Lead\lead.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Lead" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+        <bean id="lifeProdMixUpsertProcess"
+          class="com.salesforce.dataloader.process.ProcessRunner"
+          scope="singleton">
+        <description>Life Product Mix Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="lifeProdMixUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+ 		<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>    
+                <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="200"/>
+                <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+                <entry key="sfdc.entity" value="NLG_OBJ_LifeProductMix__c"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="True"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\LifeProductMixUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\Life Product Mix\Life_Product_Mix.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Life Product Mix" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+        <bean id="LSWAnnuityHierarchyUpsertProcess"
+          class="com.salesforce.dataloader.process.ProcessRunner"
+          scope="singleton">
+        <description>Annuity Product Mix Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="LSWAnnuityHierarchyUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+		<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+                <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="200"/>
+                <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+                <entry key="sfdc.entity" value="LSW_Annuity_Hierarchy__c"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="True"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\LSWAnnuityHierarchyUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\LSW Annuity Hierarchy\LSW_Annuity_Hierarchy.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\LSW Annuity Hierarchy" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+     <bean id="LSWLifeHierarchyUpsertProcess"
+          class="com.salesforce.dataloader.process.ProcessRunner"
+          scope="singleton">
+        <description>Life Product Mix Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="LSWLifeHierarchyUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com/"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+                <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="200"/>
+                <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+                <entry key="sfdc.entity" value="LSW_Life_Hierarchy__c"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="True"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\LSWLifeHierarchyUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\LSW Life Hierarchy\LSW_Life_Hierarchy.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\LSW Life Hierarchy" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>                
+            </map>
+        </property>
+    </bean>
+	<bean id="NLProductHierarchyUpsertProcess"
+          class="com.salesforce.dataloader.process.ProcessRunner"
+          scope="singleton">
+        <description>Agent Numbers Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="NLProductHierarchyUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>       
+                <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="200"/>
+                <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+                <entry key="sfdc.entity" value="NL_Product_Hierarchy__c"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="True"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\NLProductHierarchyUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\NL Product Hierarchy\NL_Product_Hierarchy.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\NL Product Hierarchy"/>
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+			</map>
+        </property>
+    </bean>
+	<bean id="AgentNumberUpsertProcess"
+          class="com.salesforce.dataloader.process.ProcessRunner"
+          scope="singleton">
+        <description>Agent Numbers Upsert job gets the Customer record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="AgentNumberUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>             
+                <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="200"/>
+                <entry key="sfdc.externalIdField" value="Agent_Number__c"/>
+                <entry key="sfdc.entity" value="Agent_Number__c"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="True"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\AgentNumberUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\Agent Number\Agent_IDs.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Agent Number"/>
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+			</map>
+        </property>
+    </bean>
+
+
+    <bean id="csvExportLead" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export Leads which are to be deleted</description>
+        <property name="name" value="csvExportLead"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+			<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="Lead"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+			<entry key="sfdc.extractionSOQL" value="SELECT Id,ToBeDeletedInBatch__c  FROM Lead where ToBeDeletedInBatch__c = true"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted Leads\LeadToBeDeleted.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+   </bean>
+
+
+
+   <bean id="csvDeleteLeads" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Deleteing the unnecessary leads from the System</description>
+        <property name="name" value="csvDeleteLeads"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+			<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="100"/>
+			<entry key="sfdc.entity" value="Lead"/>
+			<entry key="process.operation" value="delete"/>
+			<entry key="dataAccess.type" value="csvRead"/>
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted Leads\LeadToBeDeleted.csv" />
+			<entry key="process.outputError" value="D:\NLG\Load Result\Duplicate Lead Deletion\errorExportLead.csv"/>
+			<entry key="process.outputSuccess" value="D:\NLG\Load Result\Duplicate Lead Deletion\successExportLead.csv"/>
+			<entry key="process.mappingFile" value="D:\NLG\Config\SDL\LeadDelete.sdl"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+   </bean>
+
+<bean id="GroupUpsertProcess" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Group Upsert Process gets the Group Data From a CSV File And uploads them to Salesforce using UPSERT.</description>
+    <property name="name" value="GroupUpsertProcess"/>
+    <property name="configOverrideMap">
+        <map>
+				<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+            <entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+            <entry key="sfdc.timeoutSecs" value="600"/>
+            <entry key="sfdc.loadBatchSize" value="200"/>
+            <entry key="sfdc.externalIdField" value="Group_Number__c"/>
+            <entry key="sfdc.entity" value="Account"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.insertNulls" value="True"/>
+            <entry key="process.mappingFile" value="D:\NLG\Config\SDL\GroupUpsertMap.sdl"/>
+            <entry key="dataAccess.name" value="D:\NLG\Source Data\Group\Group.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+            <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+            <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\Group"/>
+            <entry key="sfdc.timezone" value="America/Chicago"/>
+        </map>
+    </property>
+</bean>
+<bean id="apdUpsertProcess" class="com.salesforce.dataloader.process.ProcessRunner"   scope="singleton">
+        <description>agent phone email Upsert job from APD system gets the agent record updates from a CSV file and uploads them to salesforce using 'upsert'.</description>
+        <property name="name" value="apdUpsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="500"/>
+                <entry key="sfdc.externalIdField" value="Global_ID__c"/>
+                <entry key="sfdc.entity" value="Contact"/>
+                <entry key="process.operation" value="upsert"/>
+		<entry key="sfdc.insertNulls" value="false"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\APDUpsertMap.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\APD\APD_Contacts.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/> 
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\APD" />
+		<entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+<bean id="GroupContactUpsertProcess" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Group Contact Upsert Process gets the Groups' Contacts From a CSV File And uploads them to Salesforce using UPSERT.</description>
+    <property name="name" value="GroupContactUpsertProcess"/>
+    <property name="configOverrideMap">
+        <map>
+           <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+		<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+            <entry key="sfdc.timeoutSecs" value="600"/>
+            <entry key="sfdc.loadBatchSize" value="200"/>
+            <entry key="sfdc.externalIdField" value="Group_Contact_ExtID__c"/>
+            <entry key="sfdc.entity" value="Contact"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.insertNulls" value="True"/>
+            <entry key="process.mappingFile" value="D:\NLG\Config\SDL\GroupContactUpsertMap.sdl"/>
+            <entry key="dataAccess.name" value="D:\NLG\Source Data\GroupContact\GroupContact.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+            <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+            <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\GroupContact"/>
+            <entry key="sfdc.timezone" value="America/Chicago"/>
+        </map>
+    </property>
+</bean>
+
+ <bean id="csvExportAllLoginHistoryExt" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export all LoginHistoryExt data excluding last 15 days for backup</description>
+        <property name="name" value="csvExportAllLoginHistoryExt"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="LoginHistoryExt__c"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id, CreatedById, CreatedDate, IsDeleted, LastModifiedById, LastModifiedDate, Name, LoginRefreshDate__c, LoginTime__c, LoginHistoryId__c, LoginType__c, LogoutTime__c, LogoutUrl__c, Minutes_Active_in_the_Session__c, OwnerId, SessionSecurityLevel__c, SessionType__c, SourceIp__c, SystemModstamp, UserName__c FROM LoginHistoryExt__c where CreatedDate != LAST_N_DAYS:15 order by CreatedDate DESC"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted LoginHistoryExt\LoginHistoryExtAll.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+ <bean id="csvExportIdLoginHistoryExt" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export Ids Only from LoginHistoryExt excluding last 15 days  to be deleted</description>
+        <property name="name" value="csvExportIdLoginHistoryExt"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="LoginHistoryExt__c"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id FROM LoginHistoryExt__c where CreatedDate != LAST_N_DAYS:15 order by CreatedDate DESC"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted LoginHistoryExt\LoginHistoryExtIds.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvDeleteLoginHistoryExt" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Deleting the LoginHistoryExt using Id's data extracted</description>
+        <property name="name" value="csvDeleteLoginHistoryExt"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="LoginHistoryExt__c"/>
+			<entry key="process.operation" value="delete"/>
+			<entry key="dataAccess.type" value="csvRead"/>
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted LoginHistoryExt\LoginHistoryExtIds.csv" />
+			<entry key="process.outputError" value="D:\NLG\Load Result\LoginHistoryExt Deletion\LoginHistoryExt Deletion\errorExportLoginHistoryExt.csv"/>
+			<entry key="process.outputSuccess" value="D:\NLG\Load Result\LoginHistoryExt Deletion\successExportLoginHistoryExt.csv"/>
+			<entry key="process.mappingFile" value="D:\NLG\Config\SDL\LoginHistoryExtDelete.sdl"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+   </bean>
+<bean id="csvExportAllIntegrationLog" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export all IntegrationLog data excluding last 15 days for backup</description>
+        <property name="name" value="csvExportAllIntegrationLog"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="IntegrationLog__c"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id, Already_Exists_Policy_Contact_Count__c, Contact_Records_Created_Count__c, Contact_Records_Updated_Count__c, CreatedById, CreatedDate, IsDeleted, DuplicateBeneficiaryToDelete__c, DuplicateBeneficiaryToUpsert__c, DuplicateCustomerContactRecordCount__c, DuplicatePolicyContactRecordCount__c, DuplicatePolicyRecordCount__c, DuplicateDeletePolicyContactRecordCount__c, ErrorCustomerContactRecordCount__c, ErrorGroupTPAContactRecordCount__c, ErrorGroupTPARecordCount__c, ErrorInforcePolicyRecordCount__c, ErrorNewBusinessRoleRecordCount__c, ErrorPolicyBeneficiaryCount__c, ErrorPolicyBeneficiaryDeleteCount__c, ErrorPolicyContactRecordCount__c, ErrorPolicyRecordCount__c, ErrorPolicyContactDeleteCount__c, ErrorRequirementRecordCount__c, InForce_Policy_Records_Created_Count__c, InForce_Policy_Records_Updated_Count__c, Integration__c, IsLastPage__c, JobDurationSeconds__c, LastModifiedById, LastModifiedDate, LastReferencedDate, LastViewedDate, Name, OwnerId, PageNumber__c, PageSize__c, PolicyBeneficiariesCreatedCount__c, PolicyBeneficiariesUpdatedCount__c, ProcessCompletedSuccessfully__c, ProcessEndTime__c, Error__c, Info__c, ProcessStartTime__c, ReceivedDeletePolicyBeneRecordCount__c, ReceivedPolicyBeneficiaryToUpsert__c, ReceivedDeletePolicyContactRecordCount__c, ReceivedPoliciesNotInSalesforce__c, RefreshTime__c, SuccessCustomerContactRecordCount__c, SuccessGroupTPAContactRecordCount__c, SuccessGroupTPARecordCount__c, SuccessInforcePolicyRecordCount__c, SuccessNewBusinessRoleRecordCount__c, SuccessPolicyBeneficiaryDeleteCount__c, SuccessPolicyBeneficiaryUpsertCount__c, SuccessPolicyContactRecordCount__c, SuccessPolicyRecordCount__c, SuccessPolicyContactDeleteCount__c, SuccessRequirementRecordCount__c, SystemModstamp, TotalCustomerContactRecordCount__c, TotalGroupTPAContactRecordCount__c, TotalGroupTPARecordCount__c, TotalInforcePolicyRecordCount__c, TotalNewBusinessRoleRecordCount__c, TotalPolicyBeneficiaryCount__c, TotalPolicyContactRecordCount__c, TotalPolicyRecordCount__c, TotalRequirementRecordCount__c FROM IntegrationLog__c  where CreatedDate != LAST_N_DAYS:15 order by CreatedDate DESC"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted Integration Log\IntegrationLogAll.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvExportIdIntegrationLog" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export Ids Only from IntegrationLogof excluding last 15 days to be deleted</description>
+        <property name="name" value="csvExportIdIncomingPolicy"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="IntegrationLog__c"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id FROM IntegrationLog__c  where CreatedDate != LAST_N_DAYS:15 order by CreatedDate DESC"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted Integration Log\IntegrationLogIds.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvDeleteIntegrationLog" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Deleting the integration log  data extracted</description>
+        <property name="name" value="csvDeleteIntegrationLog"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="IntegrationLog__c"/>
+			<entry key="process.operation" value="delete"/>
+			<entry key="dataAccess.type" value="csvRead"/>
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted Integration Log\IntegrationLogIds.csv" />
+			<entry key="process.outputError" value="D:\NLG\Load Result\IntegrationLog Deletion\errorIntegrationLog.csv"/>
+			<entry key="process.outputSuccess" value="D:\NLG\Load Result\IntegrationLog Deletion\successIntegrationLog.csv"/>
+			<entry key="process.mappingFile" value="D:\NLG\Config\SDL\IntegrationLogDelete.sdl"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+<bean id="csvExportAllIntegrationErrorRecordLog" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export all IntegrationErrorRecordLog data excluding last 15 days for backup</description>
+        <property name="name" value="csvExportAllIntegrationErrorRecordLog"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="IntegrationErrorRecordLog__c"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id, CreatedById, CreatedDate, IsDeleted, ErrorCode__c, ErrorMessage__c, Name, IntegrationLog__c, LastModifiedById, LastModifiedDate, Object__c, RecordIdentifier__c, ResponsibleFields__c, SystemModstamp FROM IntegrationErrorRecordLog__c
+ where CreatedDate != LAST_N_DAYS:15 order by CreatedDate DESC"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted IntegrationErrorRecordLog\IntegrationErrorRecordLogAll.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvExportIdIntegrationErrorRecordLog" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export Ids Only from IntegrationErrorRecordLog of excluding last 15 days to be deleted</description>
+        <property name="name" value="csvExportIdIntegrationErrorRecordLog"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/> 
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="IntegrationErrorRecordLog__c"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id FROM IntegrationErrorRecordLog__c  where CreatedDate != LAST_N_DAYS:15 order by CreatedDate DESC"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted IntegrationErrorRecordLog\IntegrationErrorRecordLogIds.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+<bean id="csvExportAllMCCampaignHourlyStat" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export all MCCampaignHourlyStatdata excluding last 15 days for backup</description>
+        <property name="name" value="csvExportAllMCCampaignHourlyStat"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/> 
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="MC4SF__MC_Campaign_Hourly_Stats__c"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id, CreatedById, CreatedDate, IsDeleted, MC4SF__Emails_Sent__c, LastModifiedById, LastModifiedDate, MC4SF__MC_Campaign__c, Name, MC4SF__Recipients_Click__c, MC4SF__Statistics_Hour__c, SystemModstamp, MC4SF__Unique_Opens__c FROM MC4SF__MC_Campaign_Hourly_Stats__c
+  where CreatedDate != LAST_N_DAYS:15 order by CreatedDate DESC"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted MC Campaign Hourly Stats\MCCampaignHourlyStatAll.csv"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvExportIdMCCampaignHourlyStat" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export Ids Only from MCCampaignHourlyStat of excluding last 15 days to be deleted</description>
+        <property name="name" value="csvExportIdMCCampaignHourlyStat"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/> 
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="MC4SF__MC_Campaign_Hourly_Stats__c"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id FROM MC4SF__MC_Campaign_Hourly_Stats__c where CreatedDate != LAST_N_DAYS:15 order by CreatedDate DESC"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted MC Campaign Hourly Stats\MCCampaignHourlyStatIds.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvDeleteMCCampaignHourlyStat" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Deleting the MCCampaignHourlyStat data extracted</description>
+        <property name="name" value="csvDeleteMCCampaignHourlyStat"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://login.salesforce.com"/> 
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="MC4SF__MC_Campaign_Hourly_Stats__c"/>
+			<entry key="process.operation" value="delete"/>
+			<entry key="dataAccess.type" value="csvRead"/>
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted MC Campaign Hourly Stats\MCCampaignHourlyStatIds.csv" />
+			<entry key="process.outputError" value="D:\NLG\Load Result\MC Campaign Hourly Stats Deletion\errorMCCampaignHourlyStat.csv"/>
+			<entry key="process.outputSuccess" value="D:\NLG\Load Result\MC Campaign Hourly Stats Deletion\successMCCampaignHourlyStat.csv"/>
+			<entry key="process.mappingFile" value="D:\NLG\Config\SDL\MCCampaignHourlyStatDelete.sdl"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvExportAllTask" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export all MCCampaignHourlyStatdata excluding last 15 days for backup</description>
+        <property name="name" value="csvExportAllTask"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="Task"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="Select AccountId, ActivityDate, AgencyName__c, AgentEmail__c, AgentFirstName__c, AgentPhone__c, AgentState__c, Agent_Kit__c, Agent__c, CallDisposition, CallDurationInSeconds, CallObject, CallType, Call_Recording_URL__c, Carrier__c, Case_Design__c, Cases__c, Category__c, Client__c, Comment__c, Complaint__c, CompletedDateTime, Completion_Date__c, Completion_Time__c, Complex_Illustrations__c, CreatedById, CreatedDate, Created_by_Automation__c, Description, Easy_Illustrations__c, Escalated_To_Management__c, Five9__Five9ANI__c, Five9__Five9AgentExtension__c, Five9__Five9AgentName__c, Five9__Five9Agent__c, Five9__Five9CallType__c, Five9__Five9Campaign__c, Five9__Five9DNIS__c, Five9__Five9HandleTime__c, Five9__Five9SessionId__c, Five9__Five9TalkAndHoldTimeInSeconds__c, Five9__Five9TaskType__c, Five9__Five9WrapTime__c, Home_Office_Function__c, Home_Office_Name__c, Hours_Open__c, IMO_Kit__c, Id, Illustrations__c, Inbound_Outbound__c, IsArchived, IsCOVID__c, IsClosed, IsDeleted, IsHighPriority, IsRecurrence, IsReminderSet, IsVisibleInSelfService, LastModifiedById, LastModifiedDate, Left_Voicemail__c, MarketPerformance__c, Moderate_Illustrations__c, NLFA_Kit__c, NLFA_Report__c, No_of_Complex_Illustrations__c, No_of_Easy_Illustrations__c, No_of_Moderate_Illustrations__c, Number_of_Cases__c, Number_of_Illustrations__c, OnBase_Email_Address__c, Outbound_Reason__c, Outbound_Type__c, Outphone__c, OwnerId, Paragon_Kit__c, Platinum_Account__c, PolicyAgent__c, Policy__c, Premium_Finance__c, Priority, Product__c, Profile__c, Prospective_Kit__c, Provider_Kit__c, RVPNLGAssociation__c, RecordTypeId, RecurrenceActivityId, RecurrenceDayOfMonth, RecurrenceDayOfWeekMask, RecurrenceEndDateOnly, RecurrenceInstance, RecurrenceInterval, RecurrenceMonthOfYear, RecurrenceRegeneratedType, RecurrenceStartDateOnly, RecurrenceTimeZoneSidKey, RecurrenceType, ReminderDateTime, Resolved__c, Response__c, SPIA_to_Life__c, Sales_Unit__c, Send_Log_a_Call_Survey__c, Status, Sub_category__c, Subject, Success_Story__c, SystemModstamp, TLC_Kit__c, Target__c, TaskSubtype, Toolkit__c, Tracking_Number__c, Trade_Ads__c, Training__c, Type, WhatId, WhoId, X3121_Kit__c, X3rd_Party__c, X412_i__c, X457_Kit__c, X7702_Questions__c, ingenius__CallId__c FROM Task  WHERE CALENDAR_YEAR(createdDate) = 2005"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Task\TasksAll.csv"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvExportIdTask" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export Ids Only from MCCampaignHourlyStat of excluding last 15 days to be deleted</description>
+        <property name="name" value="csvExportIdTask"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="Task"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+                        <entry key="sfdc.extractionSOQL" value="SELECT Id FROM Task WHERE CALENDAR_YEAR(createdDate) = 2005"/>
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Task\taskIds.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="csvDeleteTask" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Deleting the MCCampaignHourlyStat data extracted</description>
+        <property name="name" value="csvDeleteTask"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="Task"/>
+			<entry key="process.operation" value="delete"/>
+			<entry key="dataAccess.type" value="csvRead"/>
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Task\TaskIds.csv" />
+			<entry key="process.outputError" value="D:\NLG\Load Result\Task Deletion\errortask.csv"/>
+			<entry key="process.outputSuccess" value="D:\NLG\Load Result\Task Deletion\successtask.csv"/>
+			<entry key="process.mappingFile" value="D:\NLG\Config\SDL\taskDelete.sdl"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+</bean>
+
+<bean id="AgentUserName" class="com.salesforce.dataloader.process.ProcessRunner"   scope="singleton">
+	<description>Agent username is updated on Agent From a CSV File And uploads them to Salesforce using upsert.</description>
+	<property name="name" value="AgentUserName"/>
+	<property name="configOverrideMap">
+		<map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+			<!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+			the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+			<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.externalIdField" value="NLS_APD_Web_External_Id__c"/>
+			<entry key="sfdc.entity" value="NLS_Agent_WebId__c"/>
+			<entry key="process.operation" value="upsert"/>
+	
+			<entry key="process.mappingFile" value="D:\NLG\Config\SDL\AgentUserNameUpdate.sdl"/>
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\AgentUsername\SFDC_USER_ID.csv"/>
+			<entry key="dataAccess.type" value="csvRead"/>
+			<entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+			<entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\AgentUsername"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+		</map>
+	</property>
+</bean>
+<bean id="csvExportAllFieldAutoTask" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export all fields from AutoTask of last three month to be deleted</description>
+        <property name="name" value="csvExportAllFieldAutoTask"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="Task"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+            <entry key="sfdc.extractionSOQL" value="Select AG_49__c, AccountId, ActivityDate, AgencyName__c, AgentEmail__c, AgentFirstName__c, AgentFullName__c, AgentPhone__c, AgentState__c, Agent_Kit__c, Agent_Phone_No__c, Agent__c, CallDisposition, CallDurationInSeconds, CallObject, CallType, Call_Recording_URL__c, Carrier__c, Case_Design__c, Cases__c, Category__c, Class_Action_Settlement__c, Client__c, Comment__c, Complaint__c, CompletedDateTime, Completion_Date__c, Completion_Time__c, Complex_Illustrations__c, CreatedById, CreatedDate, Created_by_Automation__c, CventEvents__Attendee__c, CventEvents__EventTitle__c, CventEvents__Event__c, Department__c, Description, Disposition__c, Easy_Illustrations__c, Escalated_To_Management__c, Five9__Five9ANI__c, Five9__Five9AgentExtension__c, Five9__Five9AgentName__c, Five9__Five9Agent__c, Five9__Five9CallType__c, Five9__Five9Campaign__c, Five9__Five9DNIS__c, Five9__Five9HandleTime__c, Five9__Five9SessionId__c, Five9__Five9TalkAndHoldTimeInSeconds__c, Five9__Five9TaskType__c, Five9__Five9WrapTime__c, Home_Office_Function__c, Home_Office_Name__c, Hours_Open__c, IMO_Kit__c, Id, Illustrations__c, Inbound_Outbound__c, IsArchived, IsCOVID__c, IsClosed, IsDeleted, IsHighPriority, IsRecurrence, IsReminderSet, IsVisibleInSelfService, LastModifiedById, LastModifiedDate, LastModifiedDateAndTime__c, Left_Voicemail__c, MarketPerformance__c, Moderate_Illustrations__c, NLFA_Kit__c, NLFA_Report__c, No_of_Complex_Illustrations__c, No_of_Easy_Illustrations__c, No_of_Moderate_Illustrations__c, NumberOfCases__c, NumberOfIllustrations__c, Number_of_Cases__c, Number_of_Illustrations__c, OnBase_Email_Address__c, Outbound_Reason__c, Outbound_Type__c, Outphone__c, OwnerId, Paragon_Kit__c, Platinum_Account__c, PolicyAgent__c, Policy_Owner_Email__c, Policy_Owner_Phone__c, Policy_Owner__c, Policy__c, Premium_Finance__c, Priority, Product__c, Profile__c, Prospective_Kit__c, Provider_Kit__c, RVPNLGAssociation__c, RecordTypeId, RecurrenceActivityId, RecurrenceDayOfMonth, RecurrenceDayOfWeekMask, RecurrenceEndDateOnly, RecurrenceInstance, RecurrenceInterval, RecurrenceMonthOfYear, RecurrenceRegeneratedType, RecurrenceStartDateOnly, RecurrenceTimeZoneSidKey, RecurrenceType, ReminderDateTime, Resolved__c, Response__c, SPIA_to_Life__c, Sales_Unit__c, Send_Log_a_Call_Survey__c, Status, Sub_category__c, Subject, Success_Story__c, SurveySent__c, SystemModstamp, TLC_Kit__c, Target__c, TaskSubtype, Toolkit__c, Tracking_Number__c, Trade_Ads__c, Training__c, Type, WhatId, WhoId, X3121_Kit__c, X3rd_Party__c, X412_i__c, X457_Kit__c, X7702_Questions__c, ingenius__CallId__c FROM Task  where created_by_Automation__c!='' and status in ('Completed','Completed-No Action Taken') and createdDate != LAST_QUARTER and createdDate != THIS_QUARTER order by createddate desc" />
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted Task\AutoTaskallfield.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+   </bean>	
+
+<bean id="csvExportIdAutoTask" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Export Ids Only from AutoTask of last three month to be deleted</description>
+        <property name="name" value="csvExportIdAutoTask"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="Task"/>
+			<entry key="process.operation" value="extract"/>
+			<entry key="dataAccess.type" value="csvWrite"/>
+            <entry key="sfdc.extractionSOQL" value="select id from Task where created_by_Automation__c!='' and status in ('Completed','Completed-No Action Taken') and createdDate != LAST_QUARTER and createdDate != THIS_QUARTER order by createddate desc" />
+			<entry key="dataAccess.writeUTF8" value="true" />
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted Task\AutoTaskIds.csv" />
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+   </bean>
+
+<bean id="csvDeleteAutoTask" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+		<description>Deleting the auto task generated in last 3 month</description>
+        <property name="name" value="csvDeleteAutoTask"/>
+        <property name="configOverrideMap">
+        <map>
+			<entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+               		<entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+			<entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>  
+            		<entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+			<entry key="sfdc.timeoutSecs" value="600"/>
+			<entry key="sfdc.loadBatchSize" value="200"/>
+			<entry key="sfdc.entity" value="Task"/>
+			<entry key="process.operation" value="delete"/>
+			<entry key="dataAccess.type" value="csvRead"/>
+			<entry key="dataAccess.useBulkApi" value="true" />
+			<entry key="dataAccess.name" value="D:\NLG\Source Data\Extracted Task\AutoTaskIds.csv" />
+			<entry key="process.outputError" value="D:\NLG\Load Result\Auto Task Deletion\errorAutoTasks.csv"/>
+			<entry key="process.outputSuccess" value="D:\NLG\Load Result\Auto Task Deletion\successAutoTasks.csv"/>
+			<entry key="process.mappingFile" value="D:\NLG\Config\SDL\taskDelete.sdl"/>
+			<entry key="sfdc.timezone" value="America/Chicago"/>
+	    </map>
+        </property>
+   </bean>
+
+    <bean id="inforcePolicyStatusInsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+        <description>Inforce Policy Status insert job loads records from CSV into Salesforce using 'insert'.</description>
+        <property name="name" value="inforcePolicyStatusInsertProcess"/>
+        <property name="configOverrideMap">
+            <map>
+                <entry key="sfdc.endpoint" value="https://nationallife.my.salesforce.com"/>
+                <entry key="sfdc.username" value="datamanagement.user@nationallife.com"/>
+                <!-- password below has been encrypted using key file, therefore it will not work without the key setting: process.encryptionKeyFile
+                the password is not a valid encrypted value, please generate the real value using encrypt.bat utility -->
+                <entry key="sfdc.password" value="26d89198e4100aafabb16fd743ade0e93931e48abd7b7822e24c336921194f1c8348cb5b1105209ca3e882007283e5c78847dea1ca4b13d344e134d196ff34f6"/>
+                <entry key="process.encryptionKeyFile" value="D:\NLG\Config\dataLoader.key"/>
+                
+                <entry key="sfdc.timeoutSecs" value="600"/>
+                <entry key="sfdc.loadBatchSize" value="50"/>
+                
+                <entry key="sfdc.entity" value="NLS_Inforce_Policy_Status__c"/>
+                <entry key="process.operation" value="insert"/>   
+                
+                <entry key="sfdc.insertNulls" value="true"/>
+                <entry key="process.mappingFile" value="D:\NLG\Config\SDL\InforcePolicyStatusUpdate.sdl"/>
+                <entry key="dataAccess.name" value="D:\NLG\Source Data\InforcePolicyStatus\INFORCE_POLICY_STATUS.csv"/>
+                <entry key="dataAccess.type" value="csvRead"/>
+                
+                <entry key="process.initialLastRunDate" value="2006-12-01T00:00:00.000-0800"/>
+                <entry key="process.statusOutputDirectory" value="D:\NLG\Load Result\InforcePolicyStatusUpdate"/>
+                <entry key="sfdc.timezone" value="America/Chicago"/>
+            </map>
+        </property>
+    </bean>
+</beans>
