@@ -441,6 +441,86 @@ REM               2 = a job completed but some rows FAILED
 REM               1 = hard error, or a job was skipped
 REM ===============================================================
 
+REM ===============================================================
+REM  RETENTION PURGE CHAIN - EXTRACT + DELETE  (added 2026-09-08)
+REM ===============================================================
+REM  NOTHING ABOVE THIS LINE CHANGED. The twelve load jobs, their order,
+REM  their gates and every subroutine they use are exactly as v14 left them.
+REM  What follows is a SECOND chain that a normal run never touches - it has
+REM  to be asked for by name:
+REM
+REM    run-UATLoad.bat            the twelve load jobs. NOTHING ELSE.
+REM    run-UATLoad.bat /purge     the retention purge chain only, pauses
+REM    run-UATLoad.bat /purge /q  same, no pause - for Task Scheduler
+REM    run-UATLoad.bat TaskIdExtract      one extract bean on its own
+REM    run-UATLoad.bat TaskDelete         one delete bean on its own
+REM
+REM  THE TWO CHAINS ARE KEPT APART ON PURPOSE. The load chain WRITES rows;
+REM  this one DELETES them. If the purge jobs were appended to JOB1..JOB12,
+REM  every nightly unattended load would also be a delete, and one edit to
+REM  the wrong list would be enough to make that happen by accident. A
+REM  scheduled purge is its own scheduled task with its own switch.
+REM
+REM  THE SEVEN SETS, in run order. Each is one object and they are
+REM  INDEPENDENT - a set that fails does not stop the next one:
+REM
+REM    1  Lead                       ToBeDeletedInBatch__c = true
+REM    2  LoginHistoryExt__c         older than 15 days
+REM    3  IntegrationLog__c          older than 15 days
+REM    4  IntegrationErrorRecordLog__c   older than 15 days  EXTRACT ONLY
+REM    5  MC4SF__MC_Campaign_Hourly_Stats__c   older than 15 days
+REM    6  Task                       created in 2005
+REM    7  Task (automation-created)  older than this and last quarter
+REM
+REM  Set 4 has no delete bean in process-conf.xml, so its rows are backed up
+REM  and LEFT IN THE ORG. That is what the bean file says; it is reported as
+REM  "extract only" rather than quietly treated as done.
+REM
+REM  ORDER WITHIN A SET IS THE SAFETY MECHANISM - see :purgeset:
+REM    1 BACKUP EXTRACT  every field, to its own CSV. If this fails the set
+REM                      STOPS and nothing is deleted. Deleting rows whose
+REM                      backup never wrote is the one mistake here that
+REM                      cannot be undone.
+REM    2 ID EXTRACT      the SAME where clause, Id only. This is the file
+REM                      the delete consumes, so it is always produced by
+REM                      the same run, minutes earlier.
+REM    3 DELETE          :runjob, unchanged, exactly as the load chain calls
+REM                      it. It already knew how to run a delete bean
+REM                      ("sf data delete bulk", line ~1114); what stopped a
+REM                      delete being usable was the pre-flight, which
+REM                      insists a source CSV exists before the run starts.
+REM                      A delete's input does not exist until step 2 writes
+REM                      it, so the purge chain brings its own pre-flight.
+REM
+REM  ZERO ROWS IS NOT A FAILURE. If step 2 finds nothing older than the
+REM  retention window the delete is SKIPPED and the run stays green. It is
+REM  skipped rather than run because "sf data delete bulk" against a
+REM  header-only CSV is a failed job, not a no-op, and a red run that means
+REM  "there was nothing to do" trains people to ignore red runs.
+REM
+REM  THE DELETE ONLY EVER READS WHAT THIS RUN EXTRACTED. Pre-flight proves
+REM  every delete bean's dataAccess.name is the same path its own id extract
+REM  writes, and :runjob MOVES that CSV into Archive as it consumes it. A
+REM  stale id file from an older run therefore cannot be picked up and
+REM  deleted a second time.
+REM
+REM  "!=" IN THE SOQL - THE REASON :soqlfile EXISTS AND LOOKS THE WAY IT
+REM  DOES. Ten of the thirteen extraction queries contain "!=", and this
+REM  script runs with delayed expansion enabled in several places. Delayed
+REM  expansion EATS a lone "!": "CreatedDate != LAST_N_DAYS:15" becomes
+REM  "CreatedDate = LAST_N_DAYS:15" - still valid SOQL, returns the exact
+REM  opposite set of rows, and those rows are what the matching delete then
+REM  deletes. So the SOQL is never put in a variable that is expanded with
+REM  !...!, and it is never passed through CALL either - call re-parses its
+REM  argument line, which is what truncated a log line at "(" on 2026-08-29,
+REM  and four of these queries contain "(". It goes bean -> file -> sf CLI
+REM  and is not echoed to the log for the same reason.
+REM
+REM  Exit codes are the load chain's: 0 all clean, 2 completed with failed
+REM  rows, 1 a set was stopped or a job hard-errored.
+REM ===============================================================
+
+
 REM ---------------- configuration --------------------------------
 REM  Printed on screen and to the log at the top of every run, so the build
 REM  actually executing is never in doubt. Two runs were diagnosed off
@@ -478,6 +558,48 @@ set "JOB10=LifeProductMixUpsert"
 set "JOB11=NlProductHierarchyUpsert"
 set "JOB12=LeadUpsert"
 
+REM  The retention purge chain. SEPARATE from the twelve above - a plain
+REM  "run-UATLoad.bat" does not run any of these. Bean ids must exist in
+REM  process-conf.xml, same rule as the load jobs.
+REM  Numbered in run order and read as SEVEN INDEPENDENT SETS, one object
+REM  each:
+REM    set 1  Lead                          PJOB1  PJOB2
+REM    set 2  Login History Ext             PJOB3  PJOB4  PJOB5
+REM    set 3  Integration Log               PJOB6  PJOB7  PJOB8
+REM    set 4  Integration Error Record Log  PJOB9  PJOB10        extract only
+REM    set 5  MC Campaign Hourly Stat       PJOB11 PJOB12 PJOB13
+REM    set 6  Task                          PJOB14 PJOB15 PJOB16
+REM    set 7  Auto Task                     PJOB17 PJOB18 PJOB19
+REM  Within a set: backup extract, then id extract, then the delete that
+REM  consumes those ids. :purgeset enforces it and gates every step.
+set "PJOB1=LeadToDeleteExtract"
+set "PJOB2=LeadDelete"
+set "PJOB3=LoginHistoryExtBackupExtract"
+set "PJOB4=LoginHistoryExtIdExtract"
+set "PJOB5=LoginHistoryExtDelete"
+set "PJOB6=IntegrationLogBackupExtract"
+set "PJOB7=IntegrationLogIdExtract"
+set "PJOB8=IntegrationLogDelete"
+set "PJOB9=IntegrationErrorRecordLogBackupExtract"
+set "PJOB10=IntegrationErrorRecordLogIdExtract"
+set "PJOB11=MCCampaignHourlyStatBackupExtract"
+set "PJOB12=MCCampaignHourlyStatIdExtract"
+set "PJOB13=MCCampaignHourlyStatDelete"
+set "PJOB14=TaskBackupExtract"
+set "PJOB15=TaskIdExtract"
+set "PJOB16=TaskDelete"
+set "PJOB17=AutoTaskBackupExtract"
+set "PJOB18=AutoTaskIdExtract"
+set "PJOB19=AutoTaskDelete"
+
+REM  Set 1 has no separate backup step: LeadToDeleteExtract already carries
+REM  ToBeDeletedInBatch__c alongside the Id, and the rows it selects are the
+REM  ones somebody has already flagged for deletion in the org. Set 4 has no
+REM  delete step - there is no delete bean for IntegrationErrorRecordLog__c
+REM  in the bean file, so those rows are backed up and left where they are.
+REM  "-" is passed in place of the missing step; see :purgeset.
+
+
 REM  Minutes to wait for a bulk job to finish. NOT a Salesforce limit - it is
 REM  how long the sf CLI watches before giving up and returning. Exceeding it
 REM  does not cancel the job; the job keeps running server-side, but no result
@@ -513,6 +635,18 @@ set "ONEJOB="
 if /i "%~1"=="/q" set "QUIET=1"
 if not "%~1"=="" if /i not "%~1"=="/q" set "ONEJOB=%~1"
 
+REM  Purge mode. The two lines above put any first argument that is not /q
+REM  into ONEJOB, so "/purge" arrives here looking like a bean name - lift it
+REM  back out into its own flag and clear ONEJOB, or single-job mode goes
+REM  hunting for a bean called "/purge". /q is read from the SECOND argument
+REM  in purge mode because the first one is taken.
+set "PURGE=0"
+set "PURGEFAILED="
+if /i "%ONEJOB%"=="/purge" set "PURGE=1"
+if "%PURGE%"=="1" set "ONEJOB="
+if "%PURGE%"=="1" if /i "%~2"=="/q" set "QUIET=1"
+
+
 set "LOG=%LOGDIR%\%~n0.log"
 break>"%LOG%"
 set "WORST=0"
@@ -544,6 +678,23 @@ REM ---------------- one archive folder for the whole run ----------
 call :stamp
 set "ARCHSUB=%ARCHIVEDIR%\Archive_%A_MMDD% %A_YYYY%%A_HHSP%%A_MISS%"
 call :log "Archive folder for this run: %ARCHSUB%"
+
+REM ---------------- purge mode -----------------------------------
+REM  Sits in front of single-job mode so "/purge" never reaches :runjob.
+REM  Everything above has already run - log opened, target org resolved,
+REM  printed and logged, bean file and curl checked, archive folder named -
+REM  so the purge chain starts on exactly the same footing as a load run.
+if "%PURGE%"=="1" goto :purgechain
+
+REM  A single extract or delete bean by name. :runjob cannot run either kind
+REM  on its own - it demands the source CSV up front and has no branch for
+REM  "extract" - so those names are routed to the purge runners instead. Any
+REM  other name falls straight through to the twelve-job single-job mode
+REM  below, which is unchanged.
+set "ISPURGE="
+if defined ONEJOB call :ispurgejob "%ONEJOB%"
+if defined ISPURGE goto :purgeone
+
 
 REM ---------------- single-job mode ------------------------------
 if not defined ONEJOB goto :chain
@@ -820,6 +971,455 @@ echo(
 if "%QUIET%"=="1" (endlocal & exit /b %RC%)
 pause
 endlocal & exit /b %RC%
+
+REM ===============================================================
+REM  RETENTION PURGE CHAIN
+REM  Everything from here to the end of this block is new. It is reached
+REM  only by "/purge" or by naming one extract or delete bean - a normal
+REM  load run falls into :report long before it gets here, and the twelve
+REM  load jobs never call any of it.
+REM ===============================================================
+
+:purgechain
+call :log "=== retention purge chain starting - TARGET ORG %TARGETORG% ==="
+echo(
+echo(  ================================================
+echo(   RETENTION PURGE - THIS CHAIN DELETES ROWS
+echo(   TARGET ORG:  %TARGETORG%
+echo(  ================================================
+echo(  7 sets ^| backup before delete ^| skip delete on 0 rows ^| wait %WAITMIN% min
+
+REM ---------------- pre-flight -----------------------------------
+REM  Deliberately NOT the load chain's :checkjob. That one insists the source
+REM  CSV is already on disk, which is right for a load and wrong here: every
+REM  CSV this chain deletes from is WRITTEN by the extract that runs minutes
+REM  earlier in the same run. What is checked instead, before anything is
+REM  queried or deleted:
+REM    - every bean id really is in process-conf.xml, and carries the
+REM      operation this chain expects to find on it
+REM    - every extract bean has a non-empty sfdc.extractionSOQL
+REM    - every delete bean reads back the exact file its own id extract
+REM      writes. If those two paths ever drift apart the delete consumes
+REM      whatever else happens to be sitting at its path - most likely a
+REM      stale id file - which means deleting rows nobody extracted today.
+:purgepreflight
+set "PREOK=1"
+echo(
+echo(  Pre-flight
+for %%J in ("%PJOB1%" "%PJOB3%" "%PJOB4%" "%PJOB6%" "%PJOB7%" "%PJOB9%" "%PJOB10%" "%PJOB11%" "%PJOB12%" "%PJOB14%" "%PJOB15%" "%PJOB17%" "%PJOB18%") do call :checkextract %%J
+for %%J in ("%PJOB2%" "%PJOB5%" "%PJOB8%" "%PJOB13%" "%PJOB16%" "%PJOB19%") do call :checkdelete %%J
+call :checkpair "%PJOB1%"  "%PJOB2%"
+call :checkpair "%PJOB4%"  "%PJOB5%"
+call :checkpair "%PJOB7%"  "%PJOB8%"
+call :checkpair "%PJOB12%" "%PJOB13%"
+call :checkpair "%PJOB15%" "%PJOB16%"
+call :checkpair "%PJOB18%" "%PJOB19%"
+if not "%PREOK%"=="1" (set "ERRMSG=Purge pre-flight failed - NOTHING was extracted and NOTHING was deleted" & goto :fatal)
+
+REM ---------------- authenticate once for the whole run -----------
+REM  Same rule as the load chain: one :ensureauth call per bean, because a
+REM  bean MAY name its own sfdc.credentialsFile / sfdc.orgAlias. They share
+REM  an alias here, so only the first call does an OAuth round trip and only
+REM  a real fetch prints - what appears on screen is the literal number of
+REM  authentications this run performed.
+echo(
+echo(  Authentication
+set "PAUTHOK=1"
+for %%J in ("%PJOB1%" "%PJOB2%" "%PJOB3%" "%PJOB4%" "%PJOB5%" "%PJOB6%" "%PJOB7%" "%PJOB8%" "%PJOB9%" "%PJOB10%") do call :purgeauth %%J
+for %%J in ("%PJOB11%" "%PJOB12%" "%PJOB13%" "%PJOB14%" "%PJOB15%" "%PJOB16%" "%PJOB17%" "%PJOB18%" "%PJOB19%") do call :purgeauth %%J
+if not "%PAUTHOK%"=="1" goto :fatal
+
+REM ---------------- set 1/7  Lead ---------------------------------
+REM  No separate backup step: PJOB1 extracts ToBeDeletedInBatch__c next to
+REM  the Id, and every row it returns is one somebody already flagged for
+REM  deletion in the org.
+call :purgeset "1/7  Lead" "-" "%PJOB1%" "%PJOB2%"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="1" set "PURGEFAILED=%PURGEFAILED% Lead"
+if "%RC%"=="2" set "WORST=2"
+
+REM ---------------- set 2/7  Login History Ext --------------------
+call :purgeset "2/7  Login History Ext" "%PJOB3%" "%PJOB4%" "%PJOB5%"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="1" set "PURGEFAILED=%PURGEFAILED% LoginHistoryExt"
+if "%RC%"=="2" set "WORST=2"
+
+REM ---------------- set 3/7  Integration Log ----------------------
+call :purgeset "3/7  Integration Log" "%PJOB6%" "%PJOB7%" "%PJOB8%"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="1" set "PURGEFAILED=%PURGEFAILED% IntegrationLog"
+if "%RC%"=="2" set "WORST=2"
+
+REM ---------------- set 4/7  Integration Error Record Log ---------
+REM  EXTRACT ONLY - there is no delete bean for this object in the bean
+REM  file, so the rows are backed up and stay in the org.
+call :purgeset "4/7  Integration Error Record Log" "%PJOB9%" "%PJOB10%" "-"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="1" set "PURGEFAILED=%PURGEFAILED% IntegrationErrorRecordLog"
+if "%RC%"=="2" set "WORST=2"
+
+REM ---------------- set 5/7  MC Campaign Hourly Stat --------------
+call :purgeset "5/7  MC Campaign Hourly Stat" "%PJOB11%" "%PJOB12%" "%PJOB13%"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="1" set "PURGEFAILED=%PURGEFAILED% MCCampaignHourlyStat"
+if "%RC%"=="2" set "WORST=2"
+
+REM ---------------- set 6/7  Task ---------------------------------
+call :purgeset "6/7  Task" "%PJOB14%" "%PJOB15%" "%PJOB16%"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="1" set "PURGEFAILED=%PURGEFAILED% Task"
+if "%RC%"=="2" set "WORST=2"
+
+REM ---------------- set 7/7  Auto Task ----------------------------
+REM  Same sObject as set 6 and a different WHERE clause, so it is its own
+REM  set. Its id file has its own name (AutoTaskIds.csv), which is what
+REM  keeps the two Task deletes from ever reading each other's ids.
+call :purgeset "7/7  Auto Task" "%PJOB17%" "%PJOB18%" "%PJOB19%"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="1" set "PURGEFAILED=%PURGEFAILED% AutoTask"
+if "%RC%"=="2" set "WORST=2"
+
+REM ---------------- purge report ----------------------------------
+REM  A stopped set is not a stopped run - the other six still did their work
+REM  and their backups and deletes stand. Say which ones stopped rather than
+REM  reporting a clean total, and hand the rest to the shared :report.
+if not defined PURGEFAILED goto :report
+set "ERRMSG=These purge sets were STOPPED and nothing was deleted for them:%PURGEFAILED%. Every other set completed - see the per-job logs in %LOGDIR%. Re-run one set on its own by naming its beans, backup and ids first, delete last."
+goto :fatal
+
+REM ---------------- single extract or delete bean -----------------
+:purgeone
+call :log "Single-job mode: %ONEJOB%"
+echo(
+echo(  Authentication
+call :ensureauth "%ONEJOB%"
+if errorlevel 1 goto :fatal
+call :readbean "%ONEJOB%"
+if /i "%OPERATION%"=="delete" goto :purgeonedelete
+call :runjobextract "%ONEJOB%"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="1" (set "ERRMSG=%ONEJOB% did not complete - see %LOGDIR%\%ONEJOB%.log" & goto :fatal)
+if "%RC%"=="2" set "WORST=2"
+goto :report
+
+:purgeonedelete
+REM  A delete run on its own reads whatever id CSV is already on disk. That
+REM  file is written by this object's id extract and MOVED into Archive by
+REM  the delete that consumed it, so one sitting there is either from a run
+REM  that stopped before the delete, or one somebody put back deliberately.
+REM  Re-run the id extract first if there is any doubt which of the two it
+REM  is - the ids in it decide what gets deleted.
+call :runjob "%ONEJOB%"
+set "WORST=%ERRORLEVEL%"
+if "%WORST%"=="1" (set "ERRMSG=%ONEJOB% did not complete - see %LOGDIR%\%ONEJOB%.log" & goto :fatal)
+goto :report
+
+REM ===============================================================
+REM  :purgeset  <label> <backupBean> <idsBean> <deleteBean>
+REM  One object's purge, in the only order that is safe. "-" in place of a
+REM  bean means that set does not have that step.
+REM  Returns 0 = done, 2 = the delete completed with failed rows,
+REM          1 = the set was STOPPED and nothing was deleted for it.
+REM ===============================================================
+:purgeset
+setlocal
+set "PS_LABEL=%~1"
+set "PS_BACKUP=%~2"
+set "PS_IDS=%~3"
+set "PS_DEL=%~4"
+echo(
+echo(  --- %PS_LABEL% ---------------------------------
+if "%PS_BACKUP%"=="-" goto :psids
+
+REM  Backup first, and stop the whole set if it fails. Every other failure
+REM  in this chain costs a re-run; deleting rows whose backup never wrote
+REM  costs the rows.
+echo(     backup   %PS_BACKUP%
+call :runjobextract "%PS_BACKUP%"
+set "RC=%ERRORLEVEL%"
+call :log "%PS_BACKUP% exit code %RC%"
+if "%RC%"=="1" (call :log "%PS_LABEL% STOPPED - the backup extract failed, so the id extract and the delete were both skipped. Nothing was deleted for this object." & endlocal & exit /b 1)
+if "%RC%"=="3" call :log "%PS_BACKUP% returned 0 rows - nothing to back up"
+
+:psids
+echo(     ids      %PS_IDS%
+call :runjobextract "%PS_IDS%"
+set "RC=%ERRORLEVEL%"
+call :log "%PS_IDS% exit code %RC%"
+if "%RC%"=="1" (call :log "%PS_LABEL% STOPPED - the id extract failed, so the delete was skipped. Nothing was deleted for this object." & endlocal & exit /b 1)
+if "%PS_DEL%"=="-" (call :log "%PS_LABEL% is extract only - this object has no delete bean, so its rows stay in the org" & endlocal & exit /b 0)
+if "%RC%"=="3" (call :log "%PS_LABEL%: 0 rows matched, so there is nothing to delete - delete skipped, this is not a failure" & endlocal & exit /b 0)
+
+REM  :runjob, unchanged. It reads the same bean, finds the CSV the id
+REM  extract has just written, maps it through the SDL if there is one,
+REM  runs "sf data delete bulk", routes success and error CSVs into
+REM  Load Result, and MOVES the id file into this run's Archive folder as
+REM  it consumes it - which is what stops it being deleted from twice.
+echo(     delete   %PS_DEL%
+call :runjob "%PS_DEL%"
+set "RC=%ERRORLEVEL%"
+call :log "%PS_DEL% exit code %RC%"
+if "%RC%"=="1" (call :log "%PS_LABEL%: the delete failed - see %LOGDIR%\%PS_DEL%.log. The backup and the id file for this object are on disk, so it can be re-run on its own." & endlocal & exit /b 1)
+if "%RC%"=="2" (endlocal & exit /b 2)
+endlocal & exit /b 0
+
+REM ===============================================================
+REM  :runjobextract  <BeanId>  - the whole run for one extract bean:
+REM  take the bean's sfdc.extractionSOQL, run it through the Bulk API and
+REM  write the result to the bean's dataAccess.name.
+REM  Returns 0 = rows written, 3 = ran clean but 0 data rows,
+REM          1 = hard error.
+REM  Named :runjobextract, not :runextract, so it reads as the sibling of
+REM  :runjob that it is.
+REM ===============================================================
+:runjobextract
+setlocal
+set "PROCESS=%~1"
+set "LOG=%LOGDIR%\%PROCESS%.log"
+set "SECRETS=%ROOT%\Config\clientcreds.json"
+set "RAWERR=%LOGDIR%\%PROCESS%-raw.txt"
+set "JTMP=%LOGDIR%\%PROCESS%-jsonval.tmp"
+set "QFILE=%LOGDIR%\%PROCESS%.soql"
+break>"%LOG%"
+
+call :log "Process=%PROCESS%"
+
+REM ---------------- 1) read the bean -----------------------------
+call :readbean "%PROCESS%"
+if not defined ENTITY    (set "ERRMSG=sfdc.entity missing (bean id '%PROCESS%' not found in %BEAN%?)" & goto :exdie)
+if not defined OPERATION (set "ERRMSG=process.operation missing for bean '%PROCESS%'" & goto :exdie)
+if /i not "%OPERATION%"=="extract" (set "ERRMSG=bean '%PROCESS%' is a '%OPERATION%' bean - :runjobextract only runs 'extract'" & goto :exdie)
+if not defined CSV       (set "ERRMSG=dataAccess.name missing for bean '%PROCESS%'" & goto :exdie)
+call :log "entity=%ENTITY% op=%OPERATION% out=%CSV%"
+
+REM ---------------- 2) the query ---------------------------------
+REM  Bean to file to CLI. The query is NOT logged and NOT put in a variable
+REM  - see the "!=" note in the header. The .soql file is left in Log\ on
+REM  purpose: it is the only readable record of what was actually asked for,
+REM  it is not a secret, and it is the first thing to look at when an
+REM  extract returns a surprising number of rows.
+call :soqlfile "%PROCESS%" "%QFILE%"
+for %%Z in ("%QFILE%") do if %%~zZ lss 10 (set "ERRMSG=sfdc.extractionSOQL is missing or empty for bean '%PROCESS%'" & goto :exdie)
+call :log "Query file: %QFILE%"
+
+REM ---------------- 3) credentials + org alias -------------------
+REM  Same rules as :runjob, so a bean can name its own credentials file and
+REM  a relative path is taken as relative to ROOT.
+if not defined CREDFILE goto :excreddefault
+set "ABS=0"
+if "%CREDFILE:~1,1%"==":"  set "ABS=1"
+if "%CREDFILE:~0,2%"=="\\" set "ABS=1"
+if "%ABS%"=="0" set "CREDFILE=%ROOT%\%CREDFILE%"
+set "SECRETS=%CREDFILE%"
+if not exist "%SECRETS%" (set "ERRMSG=Credentials file not found: %SECRETS%" & goto :exdie)
+call :log "Credentials: %SECRETS%"
+:excreddefault
+
+set "ORGALIAS=%BEANALIAS%"
+if not defined ORGALIAS if exist "%SECRETS%" call :jsonval "%SECRETS%" org ORGALIAS
+if not defined ORGALIAS set "ORGALIAS=%DEFAULTALIAS%"
+if not defined ORGALIAS (set "ERRMSG=No org alias for bean '%PROCESS%' - add sfdc.orgAlias to the bean, or an 'org' key to %SECRETS%, or set DEFAULTALIAS" & goto :exdie)
+if exist "%SECRETS%" if not defined AUTHOK_%ORGALIAS% call :fetchtoken "%SECRETS%" "%ORGALIAS%"
+
+REM ---------------- 4) keep whatever is already there ------------
+REM  The bean names ONE output path, so a second run would overwrite the
+REM  first. For an id file that is harmless - the delete moves it into
+REM  Archive as it consumes it - but a backup file is the whole point of the
+REM  exercise and must not be silently replaced by a newer, smaller one.
+REM  Anything already sitting at the path goes into this run's archive folder
+REM  first, under a stamped name.
+for %%P in ("%CSV%") do if not exist "%%~dpP" md "%%~dpP" 2>nul
+for %%P in ("%CSV%") do if not exist "%%~dpP" (set "ERRMSG=Could not create the output folder for %CSV%" & goto :exdie)
+if not exist "%CSV%" goto :exnoprev
+if not defined ARCHSUB set "ARCHSUB=%ARCHIVEDIR%\Archive_%A_MMDD% %A_YYYY%%A_HHSP%%A_MISS%"
+if not exist "%ARCHSUB%" md "%ARCHSUB%" 2>nul
+call :stamp
+for %%P in ("%CSV%") do move /y "%CSV%" "%ARCHSUB%\%%~nP_%STAMP%%%~xP" >nul
+if exist "%CSV%" (set "ERRMSG=An earlier %CSV% is in the way and could not be moved into %ARCHSUB%" & goto :exdie)
+call :log "An earlier output was already at %CSV% - moved into %ARCHSUB% before this run wrote over it"
+:exnoprev
+
+REM ---------------- 5) run the query -----------------------------
+REM  "sf data query --bulk -r csv" writing to the bean's path, which is the
+REM  same command this file's own notes use for counting agent ids. CALL on
+REM  every external command: sf is sf.cmd, a BATCH file, and running one
+REM  from another without CALL transfers control and never comes back.
+REM  stderr goes to its own file so a CLI error never lands in the CSV.
+set "EXRETRIED="
+:exrun
+call :log "Running: sf data query --bulk on %ENTITY% into %CSV%"
+call sf data query --file "%QFILE%" --target-org %ORGALIAS% --bulk --wait %WAITMIN% --result-format csv >"%CSV%" 2>"%RAWERR%" <nul
+if not errorlevel 1 goto :exran
+
+REM  Same one-shot session retry as :runjob. Re-running a query is safe in a
+REM  way that re-running a load is not - it reads, it writes nothing to the
+REM  org - but it is still guarded to a single attempt, because a second
+REM  failure is a real error and not an expiry.
+if defined EXRETRIED goto :exfailed
+if not exist "%SECRETS%" goto :exfailed
+findstr /l /c:"INVALID_SESSION_ID" "%RAWERR%" >nul || goto :exfailed
+call :log "Session had expired mid-run - fetching a replacement token and retrying this query once"
+call :fetchtoken "%SECRETS%" "%ORGALIAS%"
+if errorlevel 1 goto :exdie
+set "EXRETRIED=1"
+goto :exrun
+
+:exfailed
+set "ERRMSG=sf data query failed for %PROCESS% - see %RAWERR%. Nothing was written to %CSV%, so no delete downstream of this extract will run."
+goto :exdie
+
+:exran
+REM  An empty file is NOT "0 rows" - 0 rows still writes a header line. It
+REM  means the CLI produced nothing at all, and the delete that reads this
+REM  file must not be allowed to guess which of the two happened.
+if not exist "%CSV%" (set "ERRMSG=%PROCESS%: sf reported success but wrote no file at %CSV%" & goto :exdie)
+for %%Z in ("%CSV%") do if %%~zZ equ 0 (set "ERRMSG=%PROCESS%: sf reported success but %CSV% is empty - not even a header row. See %RAWERR%." & goto :exdie)
+call :rowcount "%CSV%" EXROWS
+call :log "%PROCESS% wrote %EXROWS% data rows to %CSV%"
+echo(     %EXROWS% rows written
+if "%EXROWS%"=="0" (endlocal & exit /b 3)
+endlocal & exit /b 0
+
+:exdie
+call :log "ERROR: %ERRMSG%"
+endlocal & exit /b 1
+
+REM ===============================================================
+REM  :soqlfile  <BeanId> <outFile>  - write one bean's
+REM  sfdc.extractionSOQL to a file, exactly as it appears in the bean.
+REM
+REM  READ THE "!=" NOTE IN THE HEADER BEFORE CHANGING ANYTHING HERE. Ten of
+REM  the thirteen queries contain "!=" and four contain "(", so this routine
+REM  is built around two rules:
+REM    1 DisableDelayedExpansion, and the query text never goes into a
+REM      variable. Delayed expansion eats a lone "!" and would turn
+REM      "CreatedDate != LAST_N_DAYS:15" into "CreatedDate = LAST_N_DAYS:15"
+REM      - valid SOQL, opposite rows, and those rows get deleted.
+REM    2 the query text is never passed to CALL. Call re-parses its own
+REM      argument line; that is what truncated a log line at "(" on
+REM      2026-08-29 and it would do the same to a query.
+REM  The scan therefore passes CALL nothing but a line number and an id, and
+REM  the text itself is only ever moved by for-variable substitution, which
+REM  happens AFTER the line has been parsed and so cannot be re-read as
+REM  redirection or as a block.
+REM ===============================================================
+:soqlfile
+setlocal DisableDelayedExpansion
+set "SQ_WANT=%~1"
+set "SQ_OUT=%~2"
+set "SQ_TMP=%~2.line"
+set "SQ_IN=0"
+set "SQ_LINE="
+set "SQ_GOT="
+break>"%SQ_OUT%"
+break>"%SQ_TMP%"
+
+REM  Pass 1 - find which line the wanted bean's SOQL is on. Splitting on
+REM  both ":" and the quote character puts the line number in token 1 and
+REM  either the bean id or the entry key in token 3, so the two arguments
+REM  handed to :sqscan are always safe to re-parse.
+for /f tokens^=1^,3^ delims^=^:^" %%A in ('findstr /n /i /l /c:"<bean" /c:"sfdc.extractionSOQL" "%BEAN%"') do call :sqscan "%%A" "%%B"
+if not defined SQ_LINE goto :sqdone
+set /a SQ_SKIP=SQ_LINE-1
+if %SQ_SKIP% lss 1 goto :sqdone
+
+REM  Pass 2 - lift that one line out whole. %%L is substituted after the
+REM  redirection has been parsed, so the "<" in it is just a character.
+for /f "usebackq skip=%SQ_SKIP% delims=" %%L in ("%BEAN%") do if not defined SQ_GOT (
+  >"%SQ_TMP%" echo(%%L
+  set "SQ_GOT=1"
+)
+
+REM  Pass 3 - token 4 between quotes is the query. Same "type the file and
+REM  split on the quote" idiom :jsonval uses.
+for /f tokens^=4^ delims^=^" %%A in ('type "%SQ_TMP%"') do >>"%SQ_OUT%" echo(%%A
+
+:sqdone
+del /q "%SQ_TMP%" 2>nul
+endlocal & exit /b 0
+
+:sqscan
+REM  <lineNumber> <beanIdOrEntryKey>. Called once per matched line. No
+REM  setlocal - SQ_IN and SQ_LINE have to survive between calls.
+if /i "%~2"=="sfdc.extractionSOQL" goto :sqscansoql
+if /i "%~2"=="%SQ_WANT%" (set "SQ_IN=1") else (set "SQ_IN=0")
+exit /b 0
+:sqscansoql
+if not "%SQ_IN%"=="1" exit /b 0
+if not defined SQ_LINE set "SQ_LINE=%~1"
+exit /b 0
+
+REM ===============================================================
+REM  :checkextract  <BeanId>  - pre-flight one extract bean.
+REM  Does NOT check for a source CSV: an extract WRITES its dataAccess.name,
+REM  it does not read it.
+REM ===============================================================
+:checkextract
+call :readbean "%~1"
+if not defined ENTITY (echo(  [ERROR] %~1: bean id not found in %BEAN% & set "PREOK=0" & exit /b 0)
+if /i not "%OPERATION%"=="extract" (echo(  [ERROR] %~1: process.operation is '%OPERATION%', expected 'extract' & set "PREOK=0" & exit /b 0)
+if not defined CSV (echo(  [ERROR] %~1: dataAccess.name missing & set "PREOK=0" & exit /b 0)
+call :soqlfile "%~1" "%LOGDIR%\%~1.soql"
+for %%Z in ("%LOGDIR%\%~1.soql") do if %%~zZ lss 10 (echo(  [ERROR] %~1: sfdc.extractionSOQL missing or empty & set "PREOK=0" & exit /b 0)
+echo(  OK  %~1  -^>  %CSV%
+exit /b 0
+
+REM ===============================================================
+REM  :checkdelete  <BeanId>  - pre-flight one delete bean.
+REM  Its CSV is written later in this same run by the matching id extract,
+REM  so its absence now is the normal case and is not checked. :checkpair
+REM  checks the thing that actually matters about it.
+REM ===============================================================
+:checkdelete
+call :readbean "%~1"
+if not defined ENTITY (echo(  [ERROR] %~1: bean id not found in %BEAN% & set "PREOK=0" & exit /b 0)
+if /i not "%OPERATION%"=="delete" (echo(  [ERROR] %~1: process.operation is '%OPERATION%', expected 'delete' & set "PREOK=0" & exit /b 0)
+if not defined CSV (echo(  [ERROR] %~1: dataAccess.name missing & set "PREOK=0" & exit /b 0)
+REM  A mapping file is optional for these: the id extract writes a single
+REM  column called Id, which is already an api name, so :runjob's "no SDL"
+REM  path maps it straight through. Worth saying out loud, not worth failing.
+if not defined SDL echo(  --  %~1: no process.mappingFile - the Id column is used as-is
+if defined SDL if not exist "%SDL%" echo(  --  %~1: mapping file not found: %SDL% - the Id column is used as-is
+echo(  OK  %~1  ^<-  %CSV%
+exit /b 0
+
+REM ===============================================================
+REM  :checkpair  <idsBean> <deleteBean>  - prove the delete reads back
+REM  exactly the file its own id extract writes. Compared case-insensitively
+REM  because Windows paths are. This is the check worth having: if the two
+REM  paths drift apart, the delete still runs, still succeeds, and deletes
+REM  whatever else was sitting at its path.
+REM ===============================================================
+:checkpair
+call :readbean "%~1"
+set "PP_IDS=%CSV%"
+call :readbean "%~2"
+set "PP_DEL=%CSV%"
+if /i "%PP_IDS%"=="%PP_DEL%" (echo(  OK  %~2 reads the file %~1 writes & exit /b 0)
+echo(  [ERROR] %~2 reads %PP_DEL% but %~1 writes %PP_IDS% - they must be the same file
+set "PREOK=0"
+exit /b 0
+
+REM ===============================================================
+REM  :purgeauth  <BeanId>  - :ensureauth in a form a for loop can call,
+REM  since errorlevel cannot be read reliably inside one.
+REM ===============================================================
+:purgeauth
+call :ensureauth "%~1"
+if errorlevel 1 set "PAUTHOK=0"
+exit /b 0
+
+REM ===============================================================
+REM  :ispurgejob  <name>  - set ISPURGE if this is one of the nineteen
+REM  extract/delete beans, so single-job mode can route it away from
+REM  :runjob. Any other name is left alone and reaches the load chain's
+REM  single-job mode exactly as before.
+REM ===============================================================
+:ispurgejob
+for %%J in ("%PJOB1%" "%PJOB2%" "%PJOB3%" "%PJOB4%" "%PJOB5%" "%PJOB6%" "%PJOB7%" "%PJOB8%" "%PJOB9%" "%PJOB10%") do if /i "%~1"=="%%~J" set "ISPURGE=1"
+for %%J in ("%PJOB11%" "%PJOB12%" "%PJOB13%" "%PJOB14%" "%PJOB15%" "%PJOB16%" "%PJOB17%" "%PJOB18%" "%PJOB19%") do if /i "%~1"=="%%~J" set "ISPURGE=1"
+exit /b 0
+
 
 REM ===============================================================
 REM  :checkjob  <BeanId>  - pre-flight one job's source CSV
