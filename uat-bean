@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+<bean id="AgencyUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert Agency on Id (blank Id inserts, filled Id updates).</description>
+    <property name="name" value="AgencyUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Account"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_Agency_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AgencyMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\Agency\Agency.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+
+<bean id="AgentActiveUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert active Agents on Master Agent ID; links to parent Agency by Master Agency ID.</description>
+    <property name="name" value="AgentActiveUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Contact"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_Agent_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AgentMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\Agent\Agent-Active.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+
+<bean id="AgentTerminatedUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert terminated Agents on Master Agent ID; links to parent Agency by Master Agency ID.</description>
+    <property name="name" value="AgentTerminatedUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Contact"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_Agent_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AgentMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\Agent\Agent-Terminated.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+
+
+<bean id="AgentNumberUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert Agent Numbers on Agent Number; links to parent Agent by Master Agent ID.</description>
+    <property name="name" value="AgentNumberUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Agent_Number__c"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Agent_Number__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AgentNumberMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\AgentNumber\AgentNumber.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+
+<bean id="AgentSalesUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert Agent sales data onto the Agent (Contact) on Master Agent ID.</description>
+    <property name="name" value="AgentSalesUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Contact"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_Agent_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AgentSalesMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\AgentSales\Agentsalesdatasalesforce.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+<bean id="AnnuityProductMixUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert Annuity Product Mix on Master ID; links to parent Agent (Contact) by Master Agent ID.</description>
+    <property name="name" value="AnnuityProductMixUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="NLG_OBJ_AnnuityProductMix__c"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AnnuityProductMixMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\AnnuityProductMix\AnnuityProductMix.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+<bean id="ApdContactUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert APD data onto the Agent (Contact) on Global ID.</description>
+    <property name="name" value="ApdContactUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Contact"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Global_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\APDMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\APD\Apd_Contacts.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+<bean id="LeadUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert Leads on SSN / Tax ID.</description>
+    <property name="name" value="LeadUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Lead"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="SSN_Tax_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\LeadMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\Lead\Lead.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+<bean id="LswAnnuityHierarchyUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert LSW Annuity Hierarchy on Master ID; links to parent Agent (Contact) by Master Agent ID.</description>
+    <property name="name" value="LswAnnuityHierarchyUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="LSW_Annuity_Hierarchy__c"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\LSWAnnuityMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\LSWAnnuityHierarchy\LSWAnnuityHierarchy.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+<bean id="LswLifeHierarchyUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert LSW Life Hierarchy on Master ID.</description>
+    <property name="name" value="LswLifeHierarchyUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="LSW_Life_Hierarchy__c"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\LSWLifeMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\LSWLifeHierarchy\LSWLifeHierarchy.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+<bean id="LifeProductMixUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert Life Product Mix on Master ID; links to parent Agent (Contact) by Master Agent ID.</description>
+    <property name="name" value="LifeProductMixUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="NLG_OBJ_LifeProductMix__c"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\LifeProductMixMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\LifeProductMix\LifeProductMix.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+<bean id="NlProductHierarchyUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert NL Product Hierarchy on Master ID.</description>
+    <property name="name" value="NlProductHierarchyUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="NL_Product_Hierarchy__c"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\NLProductHierarchyMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\NLProductHierarchy\NLProductHierarchy.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+<bean id="GroupUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert Groups on Group Number (entity Account).</description>
+    <property name="name" value="GroupUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Account"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Group_Number__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\GroupMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\Group\Group.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+</beans>
