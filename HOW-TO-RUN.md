@@ -182,6 +182,31 @@ job hard-errored or a set was stopped.
 | `powershell.exe not found at ...` | Only ever appears on the drop-unmapped-columns path. Map every column in the SDL to avoid the rebuild entirely. |
 | `Field name provided, Group_Number__c does not match an External ID...` | The known `GroupUpsert` problem — see the note above. |
 
-**Do not press Ctrl-C while a file is being prepared.** Answering "N" to
+---
+
+## The screen going quiet is normal
+
+While a query or a load is running, the console prints **nothing**. Both of the
+CLI's output streams are redirected to files, so there is no progress to show --
+the job is running server-side in Salesforce. The script waits up to **60
+minutes** before giving up.
+
+Every extract and load prints a notice saying so before it starts. If you want to
+confirm it is alive, open a second Command Prompt:
+
+```
+dir "C:\NLG\Source Data\Extracted LoginHistoryExt\LoginHistoryExtAll.csv"
+```
+
+A growing file means results are downloading. For a load, Setup > Bulk Data Load
+Jobs shows the job's progress.
+
+**Do not press Ctrl-C. A quiet screen is not a hang.** Ctrl-C kills the CLI
+mid-download, which leaves a part-written file and a non-zero exit code -- the run
+is then reported as FAILED for what was actually a healthy query. On a backup
+extract that incomplete file is also what gates the matching delete, so the whole
+set has to be re-run.
+
+The same applies while an input file is being prepared: answering "N" to
 *Terminate batch job?* resumes the script with a half-built input file. The
 row-count guard is what stops that reaching Salesforce, but don't rely on it.

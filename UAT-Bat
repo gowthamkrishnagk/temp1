@@ -1289,6 +1289,22 @@ REM  stderr goes to its own file so a CLI error never lands in the CSV.
 set "EXRETRIED="
 :exrun
 call :log "Running: sf data query --bulk on %ENTITY% into %CSV%"
+REM  THE WAIT NOTICE BELOW IS NOT DECORATION - LEAVE IT IN.
+REM  Both of this command's output streams are redirected (stdout is the CSV
+REM  itself, stderr is the raw log), so the console shows NOTHING from here
+REM  until Salesforce is done. On a big object that is minutes of dead screen,
+REM  which is indistinguishable from a hang - and the natural reaction is
+REM  Ctrl-C. That kills the CLI mid-download, leaves a part-written CSV and a
+REM  non-zero exit code, and the run is then correctly reported as FAILED for
+REM  what was really a healthy query. It has already cost one run.
+echo(
+echo(     Querying Salesforce. THE SCREEN STAYS BLANK UNTIL THIS FINISHES -
+echo(     that is normal. The job runs server-side and prints nothing here.
+echo(     Waiting up to %WAITMIN% minutes.
+echo(     DO NOT PRESS Ctrl-C - it aborts the download and wastes the run.
+echo(     To watch it from a second Command Prompt:
+echo(         dir "%CSV%"
+echo(
 call sf data query --file "%QFILE%" --target-org %ORGALIAS% --bulk --wait %WAITMIN% --result-format csv >"%CSV%" 2>"%RAWERR%" <nul
 if not errorlevel 1 goto :exran
 
@@ -1801,6 +1817,14 @@ del /q "%RESULTDIR%\*failed-records*.csv"  2>nul
 set "RETRIED="
 :runload
 call :log "Running: %SFCMD% --sobject %ENTITY% %SFEXTRA%"
+REM  Same silence as the extract, same reason - see the note at :exrun.
+echo(
+echo(     Loading into Salesforce. THE SCREEN STAYS BLANK UNTIL THIS
+echo(     FINISHES - that is normal. Waiting up to %WAITMIN% minutes.
+echo(     DO NOT PRESS Ctrl-C - the bulk job keeps running in the org, but
+echo(     this script loses track of it and cannot collect the results.
+echo(     Progress is visible in Setup ^> Bulk Data Load Jobs.
+echo(
 REM  <nul on every external call: nothing in this script is interactive, and a
 REM  CLI that decides to prompt must fail rather than sit there holding up an
 REM  unattended run.
