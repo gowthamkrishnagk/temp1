@@ -529,11 +529,33 @@ set "VERSION=v14 2026-09-02  UAT"
 
 set "ROOT=C:\NLG"
 if defined NLG_ROOT set "ROOT=%NLG_ROOT%"
+if defined NLG_ROOT call :winpath ROOT
+REM  NLG_ROOT is the one path a user supplies, and from a Unix-style prompt it
+REM  is natural to export it as "/c/NLG" or "/cygdrive/c/NLG". cmd cannot use
+REM  either, so both are folded to "C:\NLG" here. A normal Windows path and a
+REM  UNC path are returned untouched. With NLG_ROOT unset - the normal case -
+REM  it is not called at all and ROOT keeps the literal value set above.
 set "BEAN=%ROOT%\Config\process-conf.xml"
 set "ARCHIVEDIR=%ROOT%\Archive"
 set "RESULTDIR=%ROOT%\Load Result"
 set "LOGDIR=%ROOT%\Log"
 set "CURL=%SystemRoot%\System32\curl.exe"
+
+REM  EVERY WINDOWS TOOL THIS SCRIPT SHELLS OUT TO IS CALLED BY FULL PATH.
+REM  Never by bare name. A bare name is resolved through PATH, and PATH is
+REM  not ours - a Git for Windows, MSYS or GnuWin32 install puts its own
+REM  find.exe ahead of System32, and the Unix find takes completely
+REM  different arguments: "find /c /v """ in :rowcount stops being a line
+REM  count and becomes a recursive walk of the whole DRIVE. Seen for real -
+REM  it sat there printing permission errors while the run appeared to hang
+REM  at the row check, which is the same symptom as a stalled job and sends
+REM  you looking in entirely the wrong place. findstr and powershell are
+REM  pinned for the same reason, and curl already was.
+REM  The sf CLI is deliberately NOT pinned - it is user-installed, its
+REM  location varies, and PATH is the only sane way to find it.
+set "FIND=%SystemRoot%\System32\find.exe"
+set "FINDSTR=%SystemRoot%\System32\findstr.exe"
+set "PSEXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 
 REM  The chain, in order. Bean ids must exist in process-conf.xml.
 REM  WHICH ORG THIS RUN HITS
@@ -630,21 +652,38 @@ set "AGENTPARTIAL=0"
 for %%D in ("%RESULTDIR%" "%ARCHIVEDIR%" "%LOGDIR%") do if not exist %%D md %%D 2>nul
 
 REM ---------------- arguments ------------------------------------
+REM  ARGUMENTS ARE CANONICALISED BEFORE THEY ARE READ, so this script behaves
+REM  the same started from cmd, from PowerShell, or from a Unix-style prompt
+REM  (Git Bash / MSYS / Cygwin / WSL).
+REM  cmd, PowerShell and WSL hand "/q" and "/purge" over untouched. MSYS does
+REM  NOT - it rewrites anything shaped like a Unix path BEFORE cmd is ever
+REM  reached, so from Git Bash these actually arrive as:
+REM      /q      ->  Q:/                             (read as a drive)
+REM      /purge  ->  C:/Program Files/Git/purge      (prefixed with the
+REM                                                   MSYS install root)
+REM  Measured on this box, not guessed. Untouched, "/q" became a bean id of
+REM  "Q:/" and the run went hunting for a bean called that, and "/purge"
+REM  never switched the purge chain on - it was hunted for as a bean id too.
+REM  :normarg undoes both forms and also accepts -q / --q / -purge / --purge,
+REM  so each shell can spell a switch the way its users expect. A bean id
+REM  comes back untouched: bean ids in process-conf.xml carry no slash and no
+REM  leading dash, which is exactly what makes this safe.
 set "QUIET=0"
 set "ONEJOB="
-if /i "%~1"=="/q" set "QUIET=1"
-if not "%~1"=="" if /i not "%~1"=="/q" set "ONEJOB=%~1"
-
-REM  Purge mode. The two lines above put any first argument that is not /q
-REM  into ONEJOB, so "/purge" arrives here looking like a bean name - lift it
-REM  back out into its own flag and clear ONEJOB, or single-job mode goes
-REM  hunting for a bean called "/purge". /q is read from the SECOND argument
-REM  in purge mode because the first one is taken.
 set "PURGE=0"
 set "PURGEFAILED="
-if /i "%ONEJOB%"=="/purge" set "PURGE=1"
+call :normarg ARG1 "%~1"
+call :normarg ARG2 "%~2"
+
+REM  From here the tests are the ORIGINAL ones, in the original order, with
+REM  the canonical token in place of the raw argument. On Windows ARG1/ARG2
+REM  are just %1/%2 with the leading slash removed, so the decisions taken
+REM  below are identical to every previous version.
+if /i "%ARG1%"=="q" set "QUIET=1"
+if defined ARG1 if /i not "%ARG1%"=="q" set "ONEJOB=%ARG1%"
+if /i "%ONEJOB%"=="purge" set "PURGE=1"
 if "%PURGE%"=="1" set "ONEJOB="
-if "%PURGE%"=="1" if /i "%~2"=="/q" set "QUIET=1"
+if "%PURGE%"=="1" if /i "%ARG2%"=="q" set "QUIET=1"
 
 
 set "LOG=%LOGDIR%\%~n0.log"
@@ -673,6 +712,8 @@ echo(  12 jobs ^| row-count guard ACTIVE ^| findstr body copy ^| no "more" ^| wa
 call :log "=== %~n0 %VERSION% starting - TARGET ORG %TARGETORG% ==="
 if not exist "%BEAN%" (set "ERRMSG=Bean not found: %BEAN%" & goto :fatal)
 if not exist "%CURL%" (set "ERRMSG=curl.exe not found at %CURL% - needs Windows 10 1803 or later" & goto :fatal)
+if not exist "%FIND%" (set "ERRMSG=find.exe not found at %FIND% - the row-count guard cannot run without it" & goto :fatal)
+if not exist "%FINDSTR%" (set "ERRMSG=findstr.exe not found at %FINDSTR%" & goto :fatal)
 
 REM ---------------- one archive folder for the whole run ----------
 call :stamp
@@ -1257,7 +1298,7 @@ REM  org - but it is still guarded to a single attempt, because a second
 REM  failure is a real error and not an expiry.
 if defined EXRETRIED goto :exfailed
 if not exist "%SECRETS%" goto :exfailed
-findstr /l /c:"INVALID_SESSION_ID" "%RAWERR%" >nul || goto :exfailed
+"%FINDSTR%" /l /c:"INVALID_SESSION_ID" "%RAWERR%" >nul || goto :exfailed
 call :log "Session had expired mid-run - fetching a replacement token and retrying this query once"
 call :fetchtoken "%SECRETS%" "%ORGALIAS%"
 if errorlevel 1 goto :exdie
@@ -1318,7 +1359,7 @@ REM  Pass 1 - find which line the wanted bean's SOQL is on. Splitting on
 REM  both ":" and the quote character puts the line number in token 1 and
 REM  either the bean id or the entry key in token 3, so the two arguments
 REM  handed to :sqscan are always safe to re-parse.
-for /f tokens^=1^,3^ delims^=^:^" %%A in ('findstr /n /i /l /c:"<bean" /c:"sfdc.extractionSOQL" "%BEAN%"') do call :sqscan "%%A" "%%B"
+for /f tokens^=1^,3^ delims^=^:^" %%A in ('call "%FINDSTR%" /n /i /l /c:"<bean" /c:"sfdc.extractionSOQL" "%BEAN%"') do call :sqscan "%%A" "%%B"
 if not defined SQ_LINE goto :sqdone
 set /a SQ_SKIP=SQ_LINE-1
 if %SQ_SKIP% lss 1 goto :sqdone
@@ -1443,7 +1484,7 @@ set "WANT=%~1"
 setlocal EnableDelayedExpansion
 set "INBEAN=0"
 set "E=" & set "O=" & set "X=" & set "S=" & set "C=" & set "R2=" & set "R3="
-for /f tokens^=1^,2^,4^ delims^=^" %%A in ('findstr /i /l /c:"<bean" /c:"<entry" "%BEAN%"') do (
+for /f tokens^=1^,2^,4^ delims^=^" %%A in ('call "%FINDSTR%" /i /l /c:"<bean" /c:"<entry" "%BEAN%"') do (
   set "TAG=%%A"
   if not "!TAG:<bean=!"=="!TAG!" (
     REM  a <bean ...> line: token 2 is its id
@@ -1570,10 +1611,10 @@ REM  that is not a letter means junk in front of it. Three characters are remove
 REM  only if that makes the name start with a letter, so a header that was
 REM  already fine is never touched.
 if !NMAP! equ 0 (
-  echo(!F1!|findstr /r /c:"^[A-Za-z]" >nul
+  echo(!F1!|"%FINDSTR%" /r /c:"^[A-Za-z]" >nul
   if errorlevel 1 (
     set "TRY=!F1:~3!"
-    echo(!TRY!|findstr /r /c:"^[A-Za-z]" >nul
+    echo(!TRY!|"%FINDSTR%" /r /c:"^[A-Za-z]" >nul
     if not errorlevel 1 (
       set "F1=!TRY!"
       echo(NOTE: UTF-8 BOM stripped from the first header - CSV UTF-8 is fine, no action needed
@@ -1622,25 +1663,45 @@ if "!FILTER!"=="0" (
 )
 
 REM  Filter path: columns have to be dropped, so every row is rebuilt.
-REM  A quoted field containing a comma cannot be split correctly in cmd,
-REM  and a "!" would be eaten by delayed expansion - refuse both rather
-REM  than write silently mis-aligned data.  The quote pattern lives in a
-REM  file because an escaped quote unbalances cmd's own parser.
+REM  A quoted field containing a comma cannot be split on commas alone, so a
+REM  CSV containing any double quote is refused rather than written back out
+REM  silently mis-aligned. The quote pattern lives in a file because an escaped
+REM  quote unbalances cmd's own parser.
 >"%QPAT%" echo "
-findstr /l /g:"%QPAT%" "%CSV%" >nul 2>&1
+"%FINDSTR%" /l /g:"%QPAT%" "%CSV%" >nul 2>&1
 if not errorlevel 1 (endlocal & set "ERRMSG=CSV contains a double quote, so unmapped columns cannot be dropped safely. Map every column in the SDL, or pre-trim the CSV." & goto :jobdie)
-findstr /l /c:"!" "%CSV%" >nul 2>&1
-if not errorlevel 1 (endlocal & set "ERRMSG=CSV contains an exclamation mark, which cmd cannot process safely. Map every column in the SDL, or pre-trim the CSV." & goto :jobdie)
 
-set "NROW=0"
-for /f "usebackq skip=1 eol=| delims=" %%L in ("%CSV%") do (
-  set "LINE=%%L"
-  call :split
-  set "OUT="
-  for %%k in (!KEEP!) do set "OUT=!OUT!,!F%%k!"
-  >>"%WORK%" echo(!OUT:~1!
-  set /a NROW+=1
-)
+REM  THE REBUILD IS DONE BY POWERSHELL, AND MUST STAY THAT WAY.
+REM  This was a pure-cmd loop until 2026-09-08: "call :split" per row, and
+REM  :split itself looped on "goto :split_next" once per FIELD. Every call
+REM  and every goto makes cmd re-seek this 100 KB file for the label, so the
+REM  cost is rows x columns file scans, plus an open-append-close of WORK
+REM  for every row.
+REM  Measured: 300 rows x 12 columns = 21 SECONDS, i.e. ~69 ms a row. A real
+REM  20,000-row extract needed ~23 minutes and a 100,000-row one about two
+REM  hours, with NOTHING printed the whole time - the "stuck on a blank screen
+REM  after the unmapped columns are dropped" report. It was never hung, just
+REM  quadratically slow. Pressing Ctrl-C and answering N broke out of the for
+REM  loop and let the run continue with a HALF-BUILT input file; the row guard
+REM  below is the only reason that never reached Salesforce.
+REM  The same 50,000 rows go through the line below in 1.5 seconds, and the
+REM  output is byte-for-byte what the old loop produced.
+REM  Latin-1 (28591) is used for both read and write ON PURPOSE: it maps every
+REM  byte 1:1 to a character, so bytes are carried through untouched and no
+REM  code page can corrupt an accented name. Do not "fix" it to UTF-8.
+REM  This also removes the old exclamation-mark refusal. It was dead code -
+REM  delayed expansion ate the "!" out of findstr /c:"!" before findstr ever
+REM  saw it, leaving an empty pattern and errorlevel 2, so the check never
+REM  once fired - and it is no longer needed either, because the row content
+REM  never passes through a cmd variable now.
+if not exist "%PSEXE%" (endlocal & set "ERRMSG=powershell.exe not found at %PSEXE% - it is needed to drop unmapped columns. Map every column in the SDL to avoid the rebuild." & goto :jobdie)
+echo(Rebuilding rows without the dropped columns - this takes a few seconds
+set "PREP_CSV=%CSV%"
+set "PREP_WORK=%WORK%"
+set "PREP_KEEP=!KEEP!"
+"%PSEXE%" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $enc=[Text.Encoding]::GetEncoding(28591); $keep=@(); foreach($k in $env:PREP_KEEP.Split(' ')){ if($k.Length -gt 0){ $keep += ([int]$k - 1) } }; $r=New-Object IO.StreamReader($env:PREP_CSV,$enc); $w=New-Object IO.StreamWriter($env:PREP_WORK,$true,$enc); $null=$r.ReadLine(); while($null -ne ($l=$r.ReadLine())){ if($l.Length -eq 0){ continue }; $f=$l.Split(','); $o=New-Object Text.StringBuilder; foreach($i in $keep){ if($o.Length -gt 0){ $null=$o.Append(',') }; if($i -lt $f.Length){ $null=$o.Append($f[$i]) } }; $w.WriteLine($o.ToString()) }; $w.Close(); $r.Close(); exit 0"
+if errorlevel 1 (endlocal & set "ERRMSG=Rebuilding %CSV% without the unmapped columns failed - see the console output just above." & goto :jobdie)
+call :rowcount "%WORK%" NROW
 echo(Prepared input CSV ^(!NROW! rows rebuilt, unmapped columns dropped^)
 endlocal
 goto :rowguard
@@ -1668,7 +1729,7 @@ REM  header whether or not a BOM sits in front of it. The only way this could
 REM  over-match is a DATA row containing the entire header line as a substring,
 REM  and that would trip the row guard rather than load anything wrong.
 :copybody
-findstr /v /l /g:"%HPAT%" "%CSV%" >>"%WORK%"
+"%FINDSTR%" /v /l /g:"%HPAT%" "%CSV%" >>"%WORK%"
 call :rowcount "%CSV%"  SRCROWS
 call :rowcount "%WORK%" WRKROWS
 :rowguard
@@ -1753,7 +1814,7 @@ REM  outright, so no bulk job was created and no row was touched. Guarded to a
 REM  single attempt - a second failure is a real error, not an expiry.
 if defined RETRIED goto :loadran
 if not exist "%SECRETS%" goto :loadran
-findstr /l /c:"INVALID_SESSION_ID" "%RAWJSON%" >nul || goto :loadran
+"%FINDSTR%" /l /c:"INVALID_SESSION_ID" "%RAWJSON%" >nul || goto :loadran
 call :log "Session had expired mid-run - fetching a replacement token and retrying this load once"
 call :fetchtoken "%SECRETS%" "%ORGALIAS%"
 if errorlevel 1 goto :jobdie
@@ -1765,7 +1826,7 @@ REM  Job id: find the first "750..." then cut at the closing quote. Do NOT take
 REM  a fixed number of characters - an id of unexpected length then swallows the
 REM  quote and the junk ends up on the next command line.
 set "JOBID="
-findstr /l /c:"750" "%RAWJSON%" >"%JTMP%" 2>nul
+"%FINDSTR%" /l /c:"750" "%RAWJSON%" >"%JTMP%" 2>nul
 set "JLINE="
 set /p JLINE=<"%JTMP%"
 if not defined JLINE goto :jobidcheck
@@ -1957,7 +2018,7 @@ call "%CURL%" -s -X POST "%FT_DOMAIN%/services/oauth2/token" ^
   -d "client_id=%FT_CLIENTID%" ^
   -d "client_secret=%FT_SECRET%" -o "%FT_TOK%" <nul
 if errorlevel 1 (set "FT_ERR=curl failed calling the token endpoint - check the domain in %~1 and that this box can reach it" & goto :ft_fail)
-findstr /l /c:"access_token" "%FT_TOK%" >nul || (set "FT_ERR=Token request failed - the response carried no access_token. Check clientId/clientSecret in %~1" & goto :ft_fail)
+"%FINDSTR%" /l /c:"access_token" "%FT_TOK%" >nul || (set "FT_ERR=Token request failed - the response carried no access_token. Check clientId/clientSecret in %~1" & goto :ft_fail)
 call :jsonval "%FT_TOK%" access_token FT_TOKEN
 call :jsonval "%FT_TOK%" instance_url FT_INSTANCE
 if not defined FT_TOKEN (set "FT_ERR=Could not read access_token from the token response" & goto :ft_fail)
@@ -2010,7 +2071,7 @@ REM  domain / ids / secrets / tokens / urls).
 :jsonval
 set "%~3="
 set "JL="
-findstr /l /c:"%~2" "%~1" >"%JTMP%" 2>nul
+"%FINDSTR%" /l /c:"%~2" "%~1" >"%JTMP%" 2>nul
 set /p JL=<"%JTMP%"
 if not defined JL exit /b 0
 call set "JL=%%JL:*%~2=%%"
@@ -2020,12 +2081,59 @@ set "JL=%JL:~2%"
 for /f tokens^=1^ delims^=^" %%A in ('type "%JTMP%"') do if not defined %~3 set "%~3=%%A"
 exit /b 0
 
+REM  NOTE ON THE TWO "for /f ('call \"%FINDSTR%\" ...')" LINES ABOVE.
+REM  The "call" is load-bearing, not decoration. for /f runs its command
+REM  through cmd /c, and cmd /c strips the first and last quote of a string
+REM  that BEGINS with a quote. With the exe path quoted first, the command
+REM  came apart into "...findstr.exe\" /i /l /c:\"<bean\"..." and every call
+REM  printed "The filename, directory name, or volume label syntax is
+REM  incorrect." while reading no beans at all. Starting the string with
+REM  "call" means it no longer begins with a quote, so nothing is stripped.
+REM  Do not "tidy" the call away.
+
+REM  :normarg  <outvar> <raw>  - the canonical form of one command-line
+REM  argument: no path in front of it, no leading slashes or dashes. See the
+REM  argument block near the top for what MSYS does and why this is needed.
+:normarg
+set "%~1="
+set "NA=%~2"
+if not defined NA exit /b 0
+REM  MSYS drive form - a lone "/x" reaches cmd as "X:/", "X:\" or "X:".
+if "%NA:~1%"==":/" (set "%~1=%NA:~0,1%" & exit /b 0)
+if "%NA:~1%"==":\" (set "%~1=%NA:~0,1%" & exit /b 0)
+if "%NA:~1%"==":" (set "%~1=%NA:~0,1%" & exit /b 0)
+REM  MSYS prefix form, and plain "/q" from cmd - keep the last component.
+for %%P in ("%NA:/=\%") do set "NA=%%~nxP"
+:normarg_strip
+if "%NA:~0,1%"=="-" (set "NA=%NA:~1%" & goto :normarg_strip)
+if "%NA:~0,1%"=="/" (set "NA=%NA:~1%" & goto :normarg_strip)
+set "%~1=%NA%"
+exit /b 0
+
+REM  :winpath  <varname>  - rewrite an MSYS/Cygwin path in that variable as a
+REM  Windows one. "/c/NLG" and "/cygdrive/c/NLG" both become "C:\NLG"; a path
+REM  that is already a Windows or UNC path is left exactly as it is.
+:winpath
+REM  A Unix path always begins with "/". Anything else - every ordinary
+REM  Windows path and every UNC path - leaves here untouched, before delayed
+REM  expansion is ever switched on, so a "!" in a Windows path is safe.
+call set "WP=%%%~1%%"
+if not defined WP exit /b 0
+if not "%WP:~0,1%"=="/" (set "WP=" & exit /b 0)
+setlocal EnableDelayedExpansion
+if /i "!WP:~0,10!"=="/cygdrive/" set "WP=!WP:~9!"
+if "!WP:~0,1!"=="/" if "!WP:~2,1!"=="/" set "WP=!WP:~1,1!:!WP:~2!"
+set "WP=!WP:/=\!"
+endlocal & set "%~1=%WP%"
+set "WP="
+exit /b 0
+
 REM  :rowcount  <csv> <outvar>  - data rows, i.e. lines minus the header.
 REM  Uses CNT, not RC - RC is the caller's exit code and must not be touched.
 :rowcount
 set "%~2=0"
 set "CNT=0"
-for /f %%N in ('type "%~1" 2^>nul ^| find /c /v ""') do set "CNT=%%N"
+for /f %%N in ('type "%~1" 2^>nul ^| "%FIND%" /c /v ""') do set "CNT=%%N"
 if %CNT% gtr 0 set /a CNT-=1
 set "%~2=%CNT%"
 exit /b 0
@@ -2066,7 +2174,7 @@ exit /b 0
 
 :stamp_check
 REM  Never let a malformed stamp reach a filename - digits only.
-echo %STAMP%|findstr /r /c:"^[0-9][0-9]*$" >nul
+echo %STAMP%|"%FINDSTR%" /r /c:"^[0-9][0-9]*$" >nul
 if errorlevel 1 (
   call :log "WARNING: could not build a timestamp - using a fixed name for this run's files"
   set "STAMP=00000000000000"
