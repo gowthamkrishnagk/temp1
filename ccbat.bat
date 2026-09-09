@@ -86,16 +86,28 @@ REM ===============================================================
 REM ---------------- configuration --------------------------------
 set "VERSION=v1 2026-09-10  sandbox"
 
+set "SELFDIR=%~dp0"
 set "ROOT=D:\NLG"
+REM  FIND THE ROOT FROM THIS SCRIPT'S OWN LOCATION FIRST. The script lives
+REM  inside the tree, so walking up to the folder called NLG finds the
+REM  install on whatever drive it actually sits on. That is what makes a
+REM  sandbox copy on C: work with no edit and no environment variable, rather
+REM  than failing with "The device is not ready" on a box with no D: drive.
+call :rootfromself
 if defined NLG_ROOT set "ROOT=%NLG_ROOT%"
 if defined NLG_ROOT call :winpath ROOT
-REM  NLG_ROOT exists to test this somewhere other than the server. If you set
-REM  it, remember the bean's own absolute paths do NOT move with it.
 
 set "CCDIR=%ROOT%\Conservation Case Automation"
-set "BEAN=%CCDIR%\Config\ccbean.bean"
+set "CONFIGDIR=%CCDIR%\Config"
+
+REM  THE BEAN FILE IS FOUND, NOT ASSUMED - see :findbean. A run that dies
+REM  with "Bean not found" because somebody renamed the file is a waste of a
+REM  morning, so the known names are tried and then any file in Config that
+REM  actually contains this job's bean id.
+set "BEAN="
 if defined CC_BEAN set "BEAN=%CC_BEAN%"
-if not exist "%BEAN%" if exist "%CCDIR%\Config\process-conf.xml" set "BEAN=%CCDIR%\Config\process-conf.xml"
+if defined BEAN if not exist "%BEAN%" (set "ERRMSG=CC_BEAN is set to %BEAN% but there is no file there" & goto :fatal)
+if not defined BEAN call :findbean
 
 set "ARCHIVEDIR=%CCDIR%\Archive"
 set "RESULTDIR=%CCDIR%\LoadResult"
@@ -157,7 +169,26 @@ echo(  ================================================
 echo(  job: %ONEJOB% ^| wait %WAITMIN% min
 call :log "=== %~n0 %VERSION% starting - TARGET ORG %TARGETORG% ==="
 call :log "Bean file: %BEAN%"
-if not exist "%BEAN%" (set "ERRMSG=Bean not found: %BEAN%" & goto :fatal)
+if not defined BEAN goto :nobean
+if not exist "%BEAN%" goto :nobean
+goto :beanok
+:nobean
+echo(
+echo(  [FAILED]   No bean file found in:
+echo(             %CONFIGDIR%
+echo(
+echo(  Looked for ccbean.bean, Process-Config.xml, process-conf.xml, then any
+echo(  file in that folder containing "CaseStagingInsert".
+echo(
+echo(  What is actually in there:
+dir /b /a-d "%CONFIGDIR%" 2>nul
+echo(
+echo(  Fix it by renaming the bean to ccbean.bean, or point at it with:
+echo(      set "CC_BEAN=%CONFIGDIR%\<your file>"
+echo(
+set "ERRMSG=No bean file found in %CONFIGDIR% - see the listing above"
+goto :fatal
+:beanok
 if not exist "%CURL%" (set "ERRMSG=curl.exe not found at %CURL% - needs Windows 10 1803 or later" & goto :fatal)
 if not exist "%FIND%" (set "ERRMSG=find.exe not found at %FIND% - the row-count guard cannot run without it" & goto :fatal)
 if not exist "%FINDSTR%" (set "ERRMSG=findstr.exe not found at %FINDSTR%" & goto :fatal)
@@ -641,6 +672,14 @@ for /f tokens^=1^,2^,4^ delims^=^" %%A in ('call "%FINDSTR%" /i /l /c:"<bean" /c
   )
 )
 endlocal & (set "ENTITY=%E%" & set "OPERATION=%O%" & set "EXTID=%X%" & set "SDL=%S%" & set "CSV=%C%" & set "STATUSDIR=%S2%" & set "CREDFILE=%R2%" & set "BEANALIAS=%R3%")
+REM  Put every path the bean gave us onto the root this run resolved. A no-op
+REM  on the server; what makes a sandbox copy on another drive work.
+REM  NOTE the test bean's dataAccess.name is "D:\Conservation Case
+REM  Automation\test\..." with no NLG in it, so it is NOT rebased and will
+REM  still point at D:. That path looks like a typo in the original bean.
+call :rebase CSV
+call :rebase SDL
+call :rebase STATUSDIR
 exit /b 0
 
 REM ===============================================================
@@ -807,6 +846,57 @@ del /q "%FT_TOK%" 2>nul
 del /q "%JTMP%"   2>nul
 endlocal & set "ERRMSG=%FT_ERR%" & exit /b 1
 
+
+REM ===============================================================
+REM  :rootfromself  - set ROOT by walking up from this script's own folder to
+REM  the one called NLG. Leaves ROOT alone if there isn't one.
+REM  SELFDIR is captured at the top level on purpose: %~dp0 inside a
+REM  subroutine expands to the label, not to the script.
+REM ===============================================================
+:rootfromself
+if not defined SELFDIR exit /b 0
+set "RS=%SELFDIR%"
+if "%RS:~-1%"=="\" set "RS=%RS:~0,-1%"
+:rs_loop
+if not defined RS exit /b 0
+if "%RS:~-1%"==":" exit /b 0
+for %%A in ("%RS%") do set "RSNAME=%%~nxA"
+if /i "%RSNAME%"=="NLG" (set "ROOT=%RS%" & exit /b 0)
+for %%A in ("%RS%") do set "RS=%%~dpA"
+if "%RS:~-1%"=="\" set "RS=%RS:~0,-1%"
+goto :rs_loop
+
+REM ===============================================================
+REM  :findbean  - locate the bean file in Config whatever it is called.
+REM ===============================================================
+:findbean
+for %%N in (ccbean.bean Process-Config.xml process-config.xml process-conf.xml CCBean.xml ccbean.xml) do if not defined BEAN if exist "%CONFIGDIR%\%%N" set "BEAN=%CONFIGDIR%\%%N"
+if defined BEAN exit /b 0
+for /f "delims=" %%F in ('dir /b /a-d "%CONFIGDIR%\*" 2^>nul') do if not defined BEAN call :beanprobe "%CONFIGDIR%\%%F"
+exit /b 0
+
+:beanprobe
+REM  <path>. A real bean file for this job names CaseStagingInsert. Checked
+REM  by content rather than by extension, so the filename stops mattering.
+"%FINDSTR%" /l /c:"CaseStagingInsert" "%~1" >nul 2>&1
+if errorlevel 1 exit /b 0
+set "BEAN=%~1"
+exit /b 0
+
+REM ===============================================================
+REM  :rebase  <varname>  - rewrite a bean path that starts "X:\NLG\" so it
+REM  starts with ROOT instead. The bean keeps the server's absolute paths,
+REM  which is right, but a sandbox copy lives on another drive and every
+REM  step would otherwise fail with "The device is not ready". On the server
+REM  ROOT is D:\NLG, so this rewrites D:\NLG to D:\NLG and changes nothing.
+REM  Only "<drive>:\NLG\..." is touched; anything else is left alone.
+REM ===============================================================
+:rebase
+call set "RB=%%%~1%%"
+if not defined RB exit /b 0
+if /i not "%RB:~1,6%"==":\NLG\" exit /b 0
+set "%~1=%ROOT%%RB:~6%"
+exit /b 0
 
 REM ===============================================================
 REM  shared subroutines

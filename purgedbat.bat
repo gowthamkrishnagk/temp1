@@ -149,9 +149,21 @@ REM  is ever put in either folder by hand: every CSV a delete reads was
 REM  written by an extract minutes earlier in the same run, into Source Data,
 REM  and is moved out into Archive as the delete consumes it.
 REM  The bean carries the two Source Data paths and the Load Result paths as
-REM  absolute paths of its own, so they do NOT follow ROOT. Only the four
-REM  folders derived below do. Move the install and the bean moves with it.
+REM  absolute paths of its own. They are rebased onto ROOT at run time - see
+REM  :rebase - so a copy of this tree on another drive works without editing
+REM  the bean. On the server, where ROOT is D:\NLG already, that rebase is a
+REM  no-op and the paths are used exactly as written.
+set "SELFDIR=%~dp0"
 set "ROOT=D:\NLG"
+REM  FIND THE ROOT FROM THIS SCRIPT'S OWN LOCATION FIRST.
+REM  The script lives inside the tree - typically ...\NLG\Automated Purger\
+REM  Config\ - so walking up from here to the folder called NLG finds the
+REM  install on whatever drive it actually sits on. That is what makes a
+REM  sandbox copy on C: work with no edit and no environment variable, which
+REM  is exactly the case that produced "The device is not ready" on a laptop
+REM  with no D: drive. If the script is moved out of the tree, nothing is
+REM  found and the D:\NLG default above stands.
+call :rootfromself
 if defined NLG_ROOT set "ROOT=%NLG_ROOT%"
 if defined NLG_ROOT call :winpath ROOT
 REM  NLG_ROOT exists to test this somewhere other than the server - a sandbox
@@ -162,11 +174,19 @@ REM  untouched. If you set it, remember the bean's own absolute paths do not
 REM  move with it - edit those too, or the extracts still write to D:.
 
 set "PURGEDIR=%ROOT%\Automated Purger"
-set "BEAN=%PURGEDIR%\Config\purgedbean.bean"
+set "CONFIGDIR=%PURGEDIR%\Config"
+
+REM  THE BEAN FILE IS FOUND, NOT ASSUMED.
+REM  It has been called purgedbean.bean, Process-Config.xml and
+REM  process-conf.xml at different points, and a run that dies with "Bean not
+REM  found" because somebody renamed it is a waste of everybody's morning.
+REM  Order: PURGE_BEAN if set, then the known names, then ANY file in Config
+REM  that actually contains this chain's bean ids. The last step is what
+REM  makes the name stop mattering.
+set "BEAN="
 if defined PURGE_BEAN set "BEAN=%PURGE_BEAN%"
-REM  Named .bean by the file it came from. If it has been renamed to the
-REM  extension the load side uses, take that instead rather than fail.
-if not exist "%BEAN%" if exist "%PURGEDIR%\Config\purge-process-conf.xml" set "BEAN=%PURGEDIR%\Config\purge-process-conf.xml"
+if defined BEAN if not exist "%BEAN%" (set "ERRMSG=PURGE_BEAN is set to %BEAN% but there is no file there" & goto :fatal)
+if not defined BEAN call :findbean
 
 set "ARCHIVEDIR=%PURGEDIR%\Archive"
 set "RESULTDIR=%PURGEDIR%\Load Result"
@@ -270,7 +290,28 @@ echo(  ================================================
 echo(  2 sets ^| backup before delete ^| skip delete on 0 rows ^| wait %WAITMIN% min
 call :log "=== %~n0 %VERSION% starting - TARGET ORG %TARGETORG% ==="
 call :log "Bean file: %BEAN%"
-if not exist "%BEAN%" (set "ERRMSG=Bean not found: %BEAN%" & goto :fatal)
+if not defined BEAN goto :nobean
+if not exist "%BEAN%" goto :nobean
+goto :beanok
+:nobean
+REM  Say what was looked for AND what is actually there. "Bean not found"
+REM  on its own sends people hunting; the listing usually answers it on sight.
+echo(
+echo(  [FAILED]   No bean file found in:
+echo(             %CONFIGDIR%
+echo(
+echo(  Looked for purgedbean.bean, Process-Config.xml, process-conf.xml, then
+echo(  any file in that folder containing "csvExportIdCases".
+echo(
+echo(  What is actually in there:
+dir /b /a-d "%CONFIGDIR%" 2>nul
+echo(
+echo(  Fix it by renaming the bean to purgedbean.bean, or point at it with:
+echo(      set "PURGE_BEAN=%CONFIGDIR%\<your file>"
+echo(
+set "ERRMSG=No bean file found in %CONFIGDIR% - see the listing above"
+goto :fatal
+:beanok
 if not exist "%CURL%" (set "ERRMSG=curl.exe not found at %CURL% - needs Windows 10 1803 or later" & goto :fatal)
 if not exist "%FIND%" (set "ERRMSG=find.exe not found at %FIND% - the row-count guard cannot run without it" & goto :fatal)
 if not exist "%FINDSTR%" (set "ERRMSG=findstr.exe not found at %FINDSTR%" & goto :fatal)
@@ -601,6 +642,12 @@ for /f tokens^=1^,2^,4^ delims^=^" %%A in ('call "%FINDSTR%" /i /l /c:"<bean" /c
   )
 )
 endlocal & (set "ENTITY=%E%" & set "OPERATION=%O%" & set "SDL=%S%" & set "CSV=%C%" & set "OUTSUCC=%S2%" & set "OUTERR=%S3%" & set "CREDFILE=%R2%" & set "BEANALIAS=%R3%")
+REM  Put every path the bean gave us onto the root this run resolved. A no-op
+REM  on the server; what makes a sandbox copy on another drive work.
+call :rebase CSV
+call :rebase SDL
+call :rebase OUTSUCC
+call :rebase OUTERR
 exit /b 0
 
 REM ===============================================================
@@ -1281,6 +1328,69 @@ REM  FT_ERR expands while the line is PARSED, i.e. before endlocal runs, so
 REM  the message survives into the caller's scope. Standard batch idiom.
 endlocal & set "ERRMSG=%FT_ERR%" & exit /b 1
 
+
+REM ===============================================================
+REM  :rootfromself  - set ROOT by walking up from this script's own folder
+REM  to the one called NLG. Leaves ROOT alone if there isn't one, so a script
+REM  kept outside the tree still uses the default at the top of the file.
+REM  SELFDIR is captured at the top level on purpose: %~dp0 inside a
+REM  subroutine expands to the label, not to the script.
+REM ===============================================================
+:rootfromself
+if not defined SELFDIR exit /b 0
+set "RS=%SELFDIR%"
+if "%RS:~-1%"=="\" set "RS=%RS:~0,-1%"
+:rs_loop
+if not defined RS exit /b 0
+REM  A bare drive - "C:" - means we walked past the top without finding it.
+if "%RS:~-1%"==":" exit /b 0
+for %%A in ("%RS%") do set "RSNAME=%%~nxA"
+if /i "%RSNAME%"=="NLG" (set "ROOT=%RS%" & exit /b 0)
+for %%A in ("%RS%") do set "RS=%%~dpA"
+if "%RS:~-1%"=="\" set "RS=%RS:~0,-1%"
+goto :rs_loop
+
+REM ===============================================================
+REM  :findbean  - locate the bean file in Config whatever it is called.
+REM  Sets BEAN, or leaves it empty for the caller's "Bean not found" check.
+REM ===============================================================
+:findbean
+for %%N in (purgedbean.bean Process-Config.xml process-config.xml purge-process-conf.xml process-conf.xml purgedbean.xml purgedbean.txt) do if not defined BEAN if exist "%CONFIGDIR%\%%N" set "BEAN=%CONFIGDIR%\%%N"
+if defined BEAN exit /b 0
+REM  Nothing matched a known name. Look for a file that contains this
+REM  chain's bean ids - the content is what matters, not the extension.
+REM  Directories are excluded with /a-d so the SDL subfolder is skipped.
+for /f "delims=" %%F in ('dir /b /a-d "%CONFIGDIR%\*" 2^>nul') do if not defined BEAN call :beanprobe "%CONFIGDIR%\%%F"
+exit /b 0
+
+:beanprobe
+REM  <path>. A real bean file for this chain names csvExportIdCases. Checked
+REM  with findstr rather than by extension, which is how Process-Config.xml
+REM  was found after it had been renamed away from purgedbean.bean.
+"%FINDSTR%" /l /c:"csvExportIdCases" "%~1" >nul 2>&1
+if errorlevel 1 exit /b 0
+set "BEAN=%~1"
+exit /b 0
+
+REM ===============================================================
+REM  :rebase  <varname>  - rewrite a bean path that starts "X:\NLG\" so it
+REM  starts with ROOT instead.
+REM
+REM  WHY THIS EXISTS. The bean holds the server's absolute paths, D:\NLG\...,
+REM  and it must keep them - it is the server's file. But a sandbox copy of
+REM  the tree lives on whatever drive the laptop has, and without this every
+REM  extract fails with "The device is not ready" on a box with no D: drive.
+REM  On the server ROOT is D:\NLG, so this rewrites D:\NLG to D:\NLG and
+REM  changes nothing at all.
+REM  Only paths shaped exactly like "<drive>:\NLG\..." are touched. Anything
+REM  else - a UNC path, or a path outside the NLG tree - is left alone.
+REM ===============================================================
+:rebase
+call set "RB=%%%~1%%"
+if not defined RB exit /b 0
+if /i not "%RB:~1,6%"==":\NLG\" exit /b 0
+set "%~1=%ROOT%%RB:~6%"
+exit /b 0
 
 REM ===============================================================
 REM  shared subroutines

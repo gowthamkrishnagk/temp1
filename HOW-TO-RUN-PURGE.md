@@ -26,7 +26,8 @@ the CSV path and where the results go — all of it comes from
 | How it logs in | `D:\NLG\Automated Purger\Config\clientcreds.json` — `domain`, `clientId`, `clientSecret`, `org` | OAuth client credentials against an External Client App. There is no username, password or key file any more. |
 | Bean definitions | `D:\NLG\Automated Purger\Config\purgedbean.bean` | Repo copy of this file is `purgedbean.bean`. |
 | The script | `D:\NLG\purgedbat.bat` | Repo copy of this file is `purgedbat.bat`. |
-| Root folder | `D:\NLG` | Override with `NLG_ROOT` only to test somewhere else — see the warning below. |
+| Root folder | found automatically | The script walks up from wherever the batch file sits to the folder called `NLG`, so a copy at `C:\NLG` works with no edit. `NLG_ROOT` overrides it. |
+| Bean filename | any of several | `purgedbean.bean`, `Process-Config.xml`, `process-conf.xml`, or any file in `Config` containing `csvExportIdCases`. `PURGE_BEAN` names one explicitly. |
 
 The target org is printed on screen and written to the log **before anything is
 queried**, so you can always see which org is about to be deleted from.
@@ -36,10 +37,16 @@ queried**, so you can always see which org is about to be deleted from.
 > archive, the logs and the config live under `Automated Purger`. This is how the
 > server is laid out and the bean depends on it.
 >
-> Because the bean names the `Source Data` and `Load Result` paths **absolutely**,
-> they do **not** follow `NLG_ROOT`. Setting `NLG_ROOT` moves only the config,
-> results, log and archive folders. To run this anywhere other than `D:\NLG` you
-> must edit the bean's paths too, or the extracts will still write to `D:`.
+> **You do not have to be on `D:` to test.** The bean keeps the server's absolute
+> `D:\NLG\...` paths, and the script rebases them onto whichever root it resolved
+> for this run. So a sandbox copy at `C:\NLG` runs without editing the bean, and
+> on the server the rebase changes nothing. Without it every step failed with
+> *The device is not ready* on a laptop that has no `D:` drive.
+>
+> **The bean file can be called anything.** It has been `purgedbean.bean` and
+> `Process-Config.xml` at different points. The script tries the known names,
+> then any file in `Config` that contains `csvExportIdCases`. If it still finds
+> nothing it lists the folder rather than just saying *Bean not found*.
 
 Open a normal Command Prompt in the folder holding the batch file, or just
 double-click it. Everything runs in that one window.
