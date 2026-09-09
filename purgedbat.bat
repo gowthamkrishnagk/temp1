@@ -7,7 +7,8 @@ REM  Replaces the old eight-line "call process" script. That one logged in
 REM  with sfdc.username / sfdc.password / process.encryptionKeyFile out of
 REM  the bean, and that login is being retired. This one authenticates as an
 REM  EXTERNAL CLIENT APP over OAuth client credentials, and the credentials
-REM  live in ONE file: Config\clientcreds.json.
+REM  live in ONE file: D:\NLG\Config\clientcreds.json - the NLG Config
+REM  folder, NOT this job's own Config folder.
 REM
 REM  Reads purgedbean.bean, gets a token with curl.exe, runs every query and
 REM  every delete through the sf CLI. Self-contained - no other script is
@@ -17,7 +18,7 @@ REM  v1  2026-09-09   sandbox / UAT
 REM ===============================================================
 REM
 REM  MOVING BETWEEN ORGS - ONE FILE CHANGES
-REM  Config\clientcreds.json only: domain, clientId, clientSecret, org.
+REM  D:\NLG\Config\clientcreds.json only: domain, clientId, clientSecret, org.
 REM  The "org" value IS the alias every sf command in this script uses.
 REM    - the BEAN does not change. It carries no org information at all.
 REM    - the SDLs do not change.
@@ -77,7 +78,8 @@ REM  FOLDERS - THE SERVER'S OWN, UNCHANGED. Source Data sits DIRECTLY under
 REM  NLG. It is NOT under Automated Purger, and it must not be moved there:
 REM    D:\NLG\Source Data\Extracted Cases\      the Case extracts land here
 REM    D:\NLG\Source Data\Extracted Tasks\      the Task extracts land here
-REM    D:\NLG\Automated Purger\Config\          clientcreds.json, the bean
+REM    D:\NLG\Config\clientcreds.json               THE LOGIN - shared by every job
+REM    D:\NLG\Automated Purger\Config\          the bean, named Process-Config.xml
 REM    D:\NLG\Automated Purger\Config\SDL\      the delete mapping files
 REM    D:\NLG\Automated Purger\Load Result\Case Deletion\  success + error CSVs
 REM    D:\NLG\Automated Purger\Load Result\Task Deletion\          "
@@ -138,7 +140,8 @@ REM  old script did and what is on disk now:
 REM
 REM    D:\NLG\Source Data\Extracted Cases\      the extracts are written here
 REM    D:\NLG\Source Data\Extracted Tasks\      and read back from here
-REM    D:\NLG\Automated Purger\Config\          bean, clientcreds.json
+REM    D:\NLG\Config\clientcreds.json               THE LOGIN - shared by every job
+REM    D:\NLG\Automated Purger\Config\          the bean, named Process-Config.xml
 REM    D:\NLG\Automated Purger\Config\SDL\      the delete mapping files
 REM    D:\NLG\Automated Purger\Load Result\     success and error CSVs
 REM    D:\NLG\Automated Purger\Archive\         consumed CSVs land here
@@ -187,6 +190,18 @@ set "BEAN="
 if defined PURGE_BEAN set "BEAN=%PURGE_BEAN%"
 if defined BEAN if not exist "%BEAN%" (set "ERRMSG=PURGE_BEAN is set to %BEAN% but there is no file there" & goto :fatal)
 if not defined BEAN call :findbean
+
+REM  THE LOGIN FILE LIVES IN THE NLG CONFIG FOLDER, NOT THIS JOB'S.
+REM  clientcreds.json is kept once at %ROOT%\Config and shared by every job -
+REM  the purger, the conservation case load and the UAT load all read the
+REM  same file. Looking for it under "Automated Purger\Config" is what
+REM  produced "TARGET ORG: (unknown - no credentials file)" on a box where
+REM  the file was sitting in NLG\Config all along.
+REM  The job's own Config folder is still checked second, so a per-job
+REM  override works if anyone ever wants one, and a bean may still name its
+REM  own file with sfdc.credentialsFile.
+set "SECRETSFILE="
+call :findcreds
 
 set "ARCHIVEDIR=%PURGEDIR%\Archive"
 set "RESULTDIR=%PURGEDIR%\Load Result"
@@ -277,7 +292,7 @@ REM  The alias is the "org" key in clientcreds.json - the same value
 REM  :ensureauth will use - so what is printed here is what gets deleted
 REM  from. On a script that deletes, a filename alone is not enough.
 set "TARGETORG="
-if exist "%PURGEDIR%\Config\clientcreds.json" call :jsonval "%PURGEDIR%\Config\clientcreds.json" org TARGETORG
+if exist "%SECRETSFILE%" call :jsonval "%SECRETSFILE%" org TARGETORG
 if not defined TARGETORG set "TARGETORG=%DEFAULTALIAS%"
 if not defined TARGETORG set "TARGETORG=(unknown - no credentials file)"
 
@@ -300,13 +315,13 @@ echo(
 echo(  [FAILED]   No bean file found in:
 echo(             %CONFIGDIR%
 echo(
-echo(  Looked for purgedbean.bean, Process-Config.xml, process-conf.xml, then
+echo(  Looked for Process-Config.xml, Process-Config, process-conf.xml, then
 echo(  any file in that folder containing "csvExportIdCases".
 echo(
 echo(  What is actually in there:
 dir /b /a-d "%CONFIGDIR%" 2>nul
 echo(
-echo(  Fix it by renaming the bean to purgedbean.bean, or point at it with:
+echo(  Fix it by renaming the bean to Process-Config.xml, or point at it with:
 echo(      set "PURGE_BEAN=%CONFIGDIR%\<your file>"
 echo(
 set "ERRMSG=No bean file found in %CONFIGDIR% - see the listing above"
@@ -744,7 +759,7 @@ REM ===============================================================
 setlocal
 set "PROCESS=%~1"
 set "LOG=%LOGDIR%\%PROCESS%.log"
-set "SECRETS=%PURGEDIR%\Config\clientcreds.json"
+set "SECRETS=%SECRETSFILE%"
 set "RAWERR=%LOGDIR%\%PROCESS%-raw.txt"
 set "JTMP=%LOGDIR%\%PROCESS%-jsonval.tmp"
 set "QFILE=%LOGDIR%\%PROCESS%.soql"
@@ -872,7 +887,7 @@ REM ===============================================================
 setlocal
 set "PROCESS=%~1"
 set "LOG=%LOGDIR%\%PROCESS%.log"
-set "SECRETS=%PURGEDIR%\Config\clientcreds.json"
+set "SECRETS=%SECRETSFILE%"
 set "RAWJSON=%LOGDIR%\%PROCESS%-raw.json"
 set "JTMP=%LOGDIR%\%PROCESS%-jsonval.tmp"
 set "HPAT=%LOGDIR%\%PROCESS%-hdr.txt"
@@ -1239,7 +1254,7 @@ REM  Returns 0 = ready, 1 = hard error with ERRMSG set.
 REM ===============================================================
 :ensureauth
 call :readbean "%~1"
-set "EA_SECRETS=%PURGEDIR%\Config\clientcreds.json"
+set "EA_SECRETS=%SECRETSFILE%"
 if not defined CREDFILE goto :ea_haveconf
 set "EA_ABS=0"
 if "%CREDFILE:~1,1%"==":"  set "EA_ABS=1"
@@ -1355,7 +1370,9 @@ REM  :findbean  - locate the bean file in Config whatever it is called.
 REM  Sets BEAN, or leaves it empty for the caller's "Bean not found" check.
 REM ===============================================================
 :findbean
-for %%N in (purgedbean.bean Process-Config.xml process-config.xml purge-process-conf.xml process-conf.xml purgedbean.xml purgedbean.txt) do if not defined BEAN if exist "%CONFIGDIR%\%%N" set "BEAN=%CONFIGDIR%\%%N"
+REM  Process-Config is the name actually used on the server, so it is tried
+REM  first and it is the name every message and every doc quotes.
+for %%N in (Process-Config.xml Process-Config process-config.xml process-conf.xml purgedbean.bean purgedbean.xml) do if not defined BEAN if exist "%CONFIGDIR%\%%N" set "BEAN=%CONFIGDIR%\%%N"
 if defined BEAN exit /b 0
 REM  Nothing matched a known name. Look for a file that contains this
 REM  chain's bean ids - the content is what matters, not the extension.
@@ -1370,6 +1387,29 @@ REM  was found after it had been renamed away from purgedbean.bean.
 "%FINDSTR%" /l /c:"csvExportIdCases" "%~1" >nul 2>&1
 if errorlevel 1 exit /b 0
 set "BEAN=%~1"
+exit /b 0
+
+REM ===============================================================
+REM  :findcreds  - locate clientcreds.json and put it in SECRETSFILE.
+REM  ORDER MATTERS AND THE FIRST ENTRY IS THE REAL ONE: the file is kept once
+REM  in the NLG Config folder and shared by every job on the box. The job's
+REM  own Config folder is only a fallback for a per-job override.
+REM  Leaves SECRETSFILE empty if there is no file anywhere, which the caller
+REM  reports as "no credentials file" - the script then refuses to guess an
+REM  org rather than deleting from whichever one the CLI last remembered.
+REM ===============================================================
+:findcreds
+if exist "%ROOT%\Config\clientcreds.json"      set "SECRETSFILE=%ROOT%\Config\clientcreds.json"      & exit /b 0
+if exist "%CONFIGDIR%\clientcreds.json"        set "SECRETSFILE=%CONFIGDIR%\clientcreds.json"        & exit /b 0
+if exist "%ROOT%\Config\ClientCreds.json"      set "SECRETSFILE=%ROOT%\Config\ClientCreds.json"      & exit /b 0
+REM  Nothing found. Say where we looked - this is the message that sent
+REM  somebody hunting for an hour when the file was one folder up.
+echo(
+echo(  [WARNING]  No clientcreds.json found. Looked in:
+echo(               %ROOT%\Config
+echo(               %CONFIGDIR%
+echo(             Without it this run cannot authenticate.
+echo(
 exit /b 0
 
 REM ===============================================================

@@ -22,8 +22,8 @@ the CSV path and where the results go — all of it comes from
 
 | Thing | Where | Notes |
 |---|---|---|
-| Which org it hits | `D:\NLG\Automated Purger\Config\clientcreds.json`, the `org` key | **This is the only file you edit to move between orgs.** The bean and the SDLs are org-independent. |
-| How it logs in | `D:\NLG\Automated Purger\Config\clientcreds.json` — `domain`, `clientId`, `clientSecret`, `org` | OAuth client credentials against an External Client App. There is no username, password or key file any more. |
+| Which org it hits | `D:\NLG\Config\clientcreds.json`, the `org` key | **This is the only file you edit to move between orgs.** The bean and the SDLs are org-independent. |
+| How it logs in | `D:\NLG\Config\clientcreds.json` — `domain`, `clientId`, `clientSecret`, `org` | OAuth client credentials against an External Client App. There is no username, password or key file any more. |
 | Bean definitions | `D:\NLG\Automated Purger\Config\purgedbean.bean` | Repo copy of this file is `purgedbean.bean`. |
 | The script | `D:\NLG\purgedbat.bat` | Repo copy of this file is `purgedbat.bat`. |
 | Root folder | found automatically | The script walks up from wherever the batch file sits to the folder called `NLG`, so a copy at `C:\NLG` works with no edit. `NLG_ROOT` overrides it. |

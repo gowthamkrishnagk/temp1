@@ -9,7 +9,8 @@ REM  Replaces the single "call process" line. That one logged in with
 REM  sfdc.username / sfdc.password / process.encryptionKeyFile out of the
 REM  bean. That login is being retired, so this authenticates as an EXTERNAL
 REM  CLIENT APP over OAuth client credentials instead, and the credentials
-REM  live in ONE file: Config\clientcreds.json.
+REM  live in ONE file: D:\NLG\Config\clientcreds.json - the NLG Config
+REM  folder, NOT this job's own Config folder.
 REM
 REM  NOTHING ELSE CHANGED. Same folders, same source CSV, same SDL, same
 REM  archive naming. The bean is the file that was on the server with four
@@ -28,7 +29,8 @@ REM
 REM  FOLDERS - THE SERVER'S OWN, UNCHANGED. Source Data sits DIRECTLY under
 REM  NLG. It is NOT under Conservation Case Automation:
 REM    D:\NLG\Source Data\Conservation Cases\    the CSV you supply
-REM    D:\NLG\Conservation Case Automation\Config\      clientcreds.json, bean, SDL
+REM    D:\NLG\Config\clientcreds.json                   THE LOGIN - shared by every job
+REM    D:\NLG\Conservation Case Automation\Config\      the bean and the SDL
 REM    D:\NLG\Conservation Case Automation\LoadResult\  success + error CSVs
 REM    D:\NLG\Conservation Case Automation\Log\         one log per bean, plus the run log
 REM    D:\NLG\Conservation Case Automation\Archive\Archive_<MMDDYYYY HMM>\
@@ -37,7 +39,7 @@ REM  The source CSV path and the results folder are ABSOLUTE IN THE BEAN, so
 REM  they do not follow ROOT. Only Config, Log and Archive are derived from it.
 REM
 REM  MOVING BETWEEN ORGS - ONE FILE CHANGES
-REM  Config\clientcreds.json only: domain, clientId, clientSecret, org.
+REM  D:\NLG\Config\clientcreds.json only: domain, clientId, clientSecret, org.
 REM  The "org" value IS the alias every sf command in this script uses. The
 REM  bean and the SDL carry no org information and do not change.
 REM  NOTE the retired bean pointed at https://login.salesforce.com, i.e.
@@ -109,6 +111,13 @@ if defined CC_BEAN set "BEAN=%CC_BEAN%"
 if defined BEAN if not exist "%BEAN%" (set "ERRMSG=CC_BEAN is set to %BEAN% but there is no file there" & goto :fatal)
 if not defined BEAN call :findbean
 
+REM  THE LOGIN FILE LIVES IN THE NLG CONFIG FOLDER, NOT THIS JOB'S.
+REM  clientcreds.json is kept once at %ROOT%\Config and shared by every job
+REM  on the box. Looking for it under this job's Config is what produced
+REM  "TARGET ORG: (unknown - no credentials file)".
+set "SECRETSFILE="
+call :findcreds
+
 set "ARCHIVEDIR=%CCDIR%\Archive"
 set "RESULTDIR=%CCDIR%\LoadResult"
 set "LOGDIR=%CCDIR%\Log"
@@ -156,7 +165,7 @@ set "JTMP=%LOGDIR%\jsonval.tmp"
 REM  Show WHICH ORG before anything is written. The retired bean pointed at
 REM  production, so this line is worth reading every single run.
 set "TARGETORG="
-if exist "%CCDIR%\Config\clientcreds.json" call :jsonval "%CCDIR%\Config\clientcreds.json" org TARGETORG
+if exist "%SECRETSFILE%" call :jsonval "%SECRETSFILE%" org TARGETORG
 if not defined TARGETORG set "TARGETORG=%DEFAULTALIAS%"
 if not defined TARGETORG set "TARGETORG=(unknown - no credentials file)"
 
@@ -177,13 +186,13 @@ echo(
 echo(  [FAILED]   No bean file found in:
 echo(             %CONFIGDIR%
 echo(
-echo(  Looked for ccbean.bean, Process-Config.xml, process-conf.xml, then any
+echo(  Looked for Process-Config.xml, Process-Config, process-conf.xml, then any
 echo(  file in that folder containing "CaseStagingInsert".
 echo(
 echo(  What is actually in there:
 dir /b /a-d "%CONFIGDIR%" 2>nul
 echo(
-echo(  Fix it by renaming the bean to ccbean.bean, or point at it with:
+echo(  Fix it by renaming the bean to Process-Config.xml, or point at it with:
 echo(      set "CC_BEAN=%CONFIGDIR%\<your file>"
 echo(
 set "ERRMSG=No bean file found in %CONFIGDIR% - see the listing above"
@@ -273,7 +282,7 @@ REM ===============================================================
 setlocal
 set "PROCESS=%~1"
 set "LOG=%LOGDIR%\%PROCESS%.log"
-set "SECRETS=%CCDIR%\Config\clientcreds.json"
+set "SECRETS=%SECRETSFILE%"
 set "RAWJSON=%LOGDIR%\%PROCESS%-raw.json"
 set "JTMP=%LOGDIR%\%PROCESS%-jsonval.tmp"
 set "QPAT=%LOGDIR%\%PROCESS%-qpat.txt"
@@ -598,7 +607,7 @@ REM ===============================================================
 setlocal
 set "PROCESS=%~1"
 set "LOG=%LOGDIR%\%PROCESS%.log"
-set "SECRETS=%CCDIR%\Config\clientcreds.json"
+set "SECRETS=%SECRETSFILE%"
 set "RAWERR=%LOGDIR%\%PROCESS%-raw.txt"
 set "JTMP=%LOGDIR%\%PROCESS%-jsonval.tmp"
 set "QFILE=%LOGDIR%\%PROCESS%.soql"
@@ -769,7 +778,7 @@ REM  to survive into the parent scope, which is the whole point.
 REM ===============================================================
 :ensureauth
 call :readbean "%~1"
-set "EA_SECRETS=%CCDIR%\Config\clientcreds.json"
+set "EA_SECRETS=%SECRETSFILE%"
 if not defined CREDFILE goto :ea_haveconf
 set "EA_ABS=0"
 if "%CREDFILE:~1,1%"==":"  set "EA_ABS=1"
@@ -870,7 +879,7 @@ REM ===============================================================
 REM  :findbean  - locate the bean file in Config whatever it is called.
 REM ===============================================================
 :findbean
-for %%N in (ccbean.bean Process-Config.xml process-config.xml process-conf.xml CCBean.xml ccbean.xml) do if not defined BEAN if exist "%CONFIGDIR%\%%N" set "BEAN=%CONFIGDIR%\%%N"
+for %%N in (Process-Config.xml Process-Config process-config.xml process-conf.xml ccbean.bean CCBean.xml) do if not defined BEAN if exist "%CONFIGDIR%\%%N" set "BEAN=%CONFIGDIR%\%%N"
 if defined BEAN exit /b 0
 for /f "delims=" %%F in ('dir /b /a-d "%CONFIGDIR%\*" 2^>nul') do if not defined BEAN call :beanprobe "%CONFIGDIR%\%%F"
 exit /b 0
@@ -881,6 +890,23 @@ REM  by content rather than by extension, so the filename stops mattering.
 "%FINDSTR%" /l /c:"CaseStagingInsert" "%~1" >nul 2>&1
 if errorlevel 1 exit /b 0
 set "BEAN=%~1"
+exit /b 0
+
+REM ===============================================================
+REM  :findcreds  - locate clientcreds.json and put it in SECRETSFILE.
+REM  The file is kept once in the NLG Config folder and shared by every job;
+REM  this job's own Config folder is only a fallback for a per-job override.
+REM ===============================================================
+:findcreds
+if exist "%ROOT%\Config\clientcreds.json" set "SECRETSFILE=%ROOT%\Config\clientcreds.json" & exit /b 0
+if exist "%CONFIGDIR%\clientcreds.json"   set "SECRETSFILE=%CONFIGDIR%\clientcreds.json"   & exit /b 0
+if exist "%ROOT%\Config\ClientCreds.json" set "SECRETSFILE=%ROOT%\Config\ClientCreds.json" & exit /b 0
+echo(
+echo(  [WARNING]  No clientcreds.json found. Looked in:
+echo(               %ROOT%\Config
+echo(               %CONFIGDIR%
+echo(             Without it this run cannot authenticate.
+echo(
 exit /b 0
 
 REM ===============================================================

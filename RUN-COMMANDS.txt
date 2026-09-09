@@ -172,8 +172,10 @@
 
  The org is the "org" key, and the login is the whole file, here:
 
-    purger    D:\NLG\Automated Purger\Config\clientcreds.json
-    cc job    D:\NLG\Conservation Case Automation\Config\clientcreds.json
+    both jobs D:\NLG\Config\clientcreds.json
+
+ It lives in the NLG Config folder, NOT in each job's own Config folder,
+ and every job on the box shares that one file.
 
  That is the only file you edit to move between orgs. The bean files and
  the SDLs carry no org information.
