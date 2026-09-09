@@ -73,20 +73,24 @@ REM  It is also why the query never passes through a cmd variable or through
 REM  CALL: delayed expansion eats a lone "!" and CALL re-parses "(" as the
 REM  start of a block, and four of these queries contain "(".
 REM
-REM  FOLDERS - all under %ROOT%, which defaults to C:\NLG:
-REM    Config\clientcreds.json                 the whole login
-REM    Config\purgedbean.bean                  the eight beans
-REM    Config\*.sdl                            mapping files, optional here
-REM    Automated Purger\Source Data\Extracted Cases\   extracts land here
-REM    Automated Purger\Source Data\Extracted Tasks\           "
-REM    Automated Purger\Load Result\Case Deletion\     success + error CSVs
-REM    Automated Purger\Load Result\Task Deletion\             "
-REM    Automated Purger\Log\                   one log per bean, plus the run log
-REM    PurgedExtracts\Archive_AutoPurgedExtracts_<MMDDYYYY HMM>\   archive
+REM  FOLDERS - THE SERVER'S OWN, UNCHANGED. Source Data sits DIRECTLY under
+REM  NLG. It is NOT under Automated Purger, and it must not be moved there:
+REM    D:\NLG\Source Data\Extracted Cases\      the Case extracts land here
+REM    D:\NLG\Source Data\Extracted Tasks\      the Task extracts land here
+REM    D:\NLG\Automated Purger\Config\          clientcreds.json, the bean
+REM    D:\NLG\Automated Purger\Config\SDL\      the delete mapping files
+REM    D:\NLG\Automated Purger\Load Result\Case Deletion\  success + error CSVs
+REM    D:\NLG\Automated Purger\Load Result\Task Deletion\          "
+REM    D:\NLG\Automated Purger\Log\             one log per bean, plus the run log
+REM    D:\NLG\Automated Purger\Archive\Archive_AutoPurgedExtracts_<MMDDYYYY HMM>\
 REM
-REM  NOTHING IS EVER PUT IN THE AUTOMATED PURGER FOLDER BY HAND. Every CSV
-REM  this script deletes from is WRITTEN by an extract minutes earlier in the
-REM  same run, into Source Data, and moved out into the archive afterwards.
+REM  The two Source Data paths and the Load Result paths are ABSOLUTE IN THE
+REM  BEAN, so they do not follow ROOT. Only Config, Load Result, Log and
+REM  Archive are derived from it.
+REM
+REM  NOTHING IS EVER PUT IN EITHER FOLDER BY HAND. Every CSV this script
+REM  deletes from is WRITTEN by an extract minutes earlier in the same run,
+REM  into Source Data, and moved out into Archive afterwards.
 REM  The Load Result folders are the ones named by process.outputSuccess and
 REM  process.outputError in the bean - only their FOLDER is taken from the
 REM  bean; the run's timestamp is appended to the filename so one run cannot
@@ -128,23 +132,43 @@ REM  Printed on screen and to the log at the top of every run, so the build
 REM  actually executing is never in doubt.
 set "VERSION=v1 2026-09-09  sandbox"
 
-set "ROOT=C:\NLG"
+REM  THESE ARE THE SERVER'S OWN FOLDERS. DO NOT REARRANGE THEM.
+REM  The layout is NOT one tidy tree, and that is deliberate - it is what the
+REM  old script did and what is on disk now:
+REM
+REM    D:\NLG\Source Data\Extracted Cases\      the extracts are written here
+REM    D:\NLG\Source Data\Extracted Tasks\      and read back from here
+REM    D:\NLG\Automated Purger\Config\          bean, clientcreds.json
+REM    D:\NLG\Automated Purger\Config\SDL\      the delete mapping files
+REM    D:\NLG\Automated Purger\Load Result\     success and error CSVs
+REM    D:\NLG\Automated Purger\Archive\         consumed CSVs land here
+REM    D:\NLG\Automated Purger\Log\             logs
+REM
+REM  SOURCE DATA SITS DIRECTLY UNDER NLG, NOT UNDER AUTOMATED PURGER. Nothing
+REM  is ever put in either folder by hand: every CSV a delete reads was
+REM  written by an extract minutes earlier in the same run, into Source Data,
+REM  and is moved out into Archive as the delete consumes it.
+REM  The bean carries the two Source Data paths and the Load Result paths as
+REM  absolute paths of its own, so they do NOT follow ROOT. Only the four
+REM  folders derived below do. Move the install and the bean moves with it.
+set "ROOT=D:\NLG"
 if defined NLG_ROOT set "ROOT=%NLG_ROOT%"
 if defined NLG_ROOT call :winpath ROOT
-REM  NLG_ROOT is the one path a user supplies, and from a Unix-style prompt it
-REM  is natural to export it as "/c/NLG" or "/cygdrive/c/NLG". cmd cannot use
-REM  either, so both are folded to "C:\NLG" here. A normal Windows path and a
-REM  UNC path are returned untouched. Set it to D:\NLG to run against a D:
-REM  drive layout - the bean's own paths would have to move with it.
+REM  NLG_ROOT exists to test this somewhere other than the server - a sandbox
+REM  copy on C:, say. From a Unix-style prompt it is natural to export it as
+REM  "/d/NLG" or "/cygdrive/d/NLG"; cmd cannot use either, so both are folded
+REM  to "D:\NLG" here. A normal Windows path and a UNC path are returned
+REM  untouched. If you set it, remember the bean's own absolute paths do not
+REM  move with it - edit those too, or the extracts still write to D:.
 
 set "PURGEDIR=%ROOT%\Automated Purger"
-set "BEAN=%ROOT%\Config\purgedbean.bean"
+set "BEAN=%PURGEDIR%\Config\purgedbean.bean"
 if defined PURGE_BEAN set "BEAN=%PURGE_BEAN%"
 REM  Named .bean by the file it came from. If it has been renamed to the
 REM  extension the load side uses, take that instead rather than fail.
-if not exist "%BEAN%" if exist "%ROOT%\Config\purge-process-conf.xml" set "BEAN=%ROOT%\Config\purge-process-conf.xml"
+if not exist "%BEAN%" if exist "%PURGEDIR%\Config\purge-process-conf.xml" set "BEAN=%PURGEDIR%\Config\purge-process-conf.xml"
 
-set "ARCHIVEDIR=%ROOT%\PurgedExtracts"
+set "ARCHIVEDIR=%PURGEDIR%\Archive"
 set "RESULTDIR=%PURGEDIR%\Load Result"
 set "LOGDIR=%PURGEDIR%\Log"
 set "CURL=%SystemRoot%\System32\curl.exe"
@@ -233,7 +257,7 @@ REM  The alias is the "org" key in clientcreds.json - the same value
 REM  :ensureauth will use - so what is printed here is what gets deleted
 REM  from. On a script that deletes, a filename alone is not enough.
 set "TARGETORG="
-if exist "%ROOT%\Config\clientcreds.json" call :jsonval "%ROOT%\Config\clientcreds.json" org TARGETORG
+if exist "%PURGEDIR%\Config\clientcreds.json" call :jsonval "%PURGEDIR%\Config\clientcreds.json" org TARGETORG
 if not defined TARGETORG set "TARGETORG=%DEFAULTALIAS%"
 if not defined TARGETORG set "TARGETORG=(unknown - no credentials file)"
 
@@ -673,7 +697,7 @@ REM ===============================================================
 setlocal
 set "PROCESS=%~1"
 set "LOG=%LOGDIR%\%PROCESS%.log"
-set "SECRETS=%ROOT%\Config\clientcreds.json"
+set "SECRETS=%PURGEDIR%\Config\clientcreds.json"
 set "RAWERR=%LOGDIR%\%PROCESS%-raw.txt"
 set "JTMP=%LOGDIR%\%PROCESS%-jsonval.tmp"
 set "QFILE=%LOGDIR%\%PROCESS%.soql"
@@ -801,7 +825,7 @@ REM ===============================================================
 setlocal
 set "PROCESS=%~1"
 set "LOG=%LOGDIR%\%PROCESS%.log"
-set "SECRETS=%ROOT%\Config\clientcreds.json"
+set "SECRETS=%PURGEDIR%\Config\clientcreds.json"
 set "RAWJSON=%LOGDIR%\%PROCESS%-raw.json"
 set "JTMP=%LOGDIR%\%PROCESS%-jsonval.tmp"
 set "HPAT=%LOGDIR%\%PROCESS%-hdr.txt"
@@ -1168,7 +1192,7 @@ REM  Returns 0 = ready, 1 = hard error with ERRMSG set.
 REM ===============================================================
 :ensureauth
 call :readbean "%~1"
-set "EA_SECRETS=%ROOT%\Config\clientcreds.json"
+set "EA_SECRETS=%PURGEDIR%\Config\clientcreds.json"
 if not defined CREDFILE goto :ea_haveconf
 set "EA_ABS=0"
 if "%CREDFILE:~1,1%"==":"  set "EA_ABS=1"
@@ -1404,6 +1428,6 @@ if errorlevel 1 (
 REM  The hour is space-padded, not zero-padded, because that is what
 REM  "%Time:~0,2%" gave the old script: midnight produced " 0" and the folder
 REM  came out "Archive_AutoPurgedExtracts_09042026 032". Keep it, so this
-REM  run's folder sorts next to the ones already in PurgedExtracts.
+REM  run's folder sorts next to the ones already in the Archive folder.
 if "%A_HH:~0,1%"=="0" (set "A_HHSP= %A_HH:~1%") else (set "A_HHSP=%A_HH%")
 exit /b 0

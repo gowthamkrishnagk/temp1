@@ -22,14 +22,24 @@ the CSV path and where the results go — all of it comes from
 
 | Thing | Where | Notes |
 |---|---|---|
-| Which org it hits | `C:\NLG\Config\clientcreds.json`, the `org` key | **This is the only file you edit to move between orgs.** The bean and the SDLs are org-independent. |
-| How it logs in | `C:\NLG\Config\clientcreds.json` — `domain`, `clientId`, `clientSecret`, `org` | OAuth client credentials against an External Client App. There is no username, password or key file any more. |
-| Bean definitions | `C:\NLG\Config\purgedbean.bean` | Repo copy of this file is `purgedbean.bean`. |
-| The script | `C:\NLG\purgedbat.bat` | Repo copy of this file is `purgedbat.bat`. |
-| Root folder | `C:\NLG` | Override with the `NLG_ROOT` environment variable if your install is elsewhere. Set it to `D:\NLG` for a D: drive layout — but the bean's own paths have to move with it. |
+| Which org it hits | `D:\NLG\Automated Purger\Config\clientcreds.json`, the `org` key | **This is the only file you edit to move between orgs.** The bean and the SDLs are org-independent. |
+| How it logs in | `D:\NLG\Automated Purger\Config\clientcreds.json` — `domain`, `clientId`, `clientSecret`, `org` | OAuth client credentials against an External Client App. There is no username, password or key file any more. |
+| Bean definitions | `D:\NLG\Automated Purger\Config\purgedbean.bean` | Repo copy of this file is `purgedbean.bean`. |
+| The script | `D:\NLG\purgedbat.bat` | Repo copy of this file is `purgedbat.bat`. |
+| Root folder | `D:\NLG` | Override with `NLG_ROOT` only to test somewhere else — see the warning below. |
 
 The target org is printed on screen and written to the log **before anything is
 queried**, so you can always see which org is about to be deleted from.
+
+> **The folders are not one tidy tree, and that is correct.** `Source Data` sits
+> **directly under `D:\NLG`**, not under `Automated Purger`. Only the results, the
+> archive, the logs and the config live under `Automated Purger`. This is how the
+> server is laid out and the bean depends on it.
+>
+> Because the bean names the `Source Data` and `Load Result` paths **absolutely**,
+> they do **not** follow `NLG_ROOT`. Setting `NLG_ROOT` moves only the config,
+> results, log and archive folders. To run this anywhere other than `D:\NLG` you
+> must edit the bean's paths too, or the extracts will still write to `D:`.
 
 Open a normal Command Prompt in the folder holding the batch file, or just
 double-click it. Everything runs in that one window.
@@ -67,7 +77,7 @@ last twelve months.
 
 | Record type | Bean id — use this as the argument | Writes |
 |---|---|---|
-| Buying Customer | `csvExportBuyingCustomerCases` | `Automated Purger\Source Data\Extracted Cases\BuyingCustomerCaseBackup.csv` |
+| Buying Customer | `csvExportBuyingCustomerCases` | `Source Data\Extracted Cases\BuyingCustomerCaseBackup.csv` |
 | Selling Customer | `csvExportSellingCustomerCases` | `...\Extracted Cases\SellingCustomerCasesBackup.csv` |
 | Conservation Case | `csvExportConservationCasesCases` | `...\Extracted Cases\ConservationCasesBackup.csv` |
 
@@ -107,7 +117,7 @@ Same rule: `CreatedDate < LAST_N_MONTHS:12`.
 
 | Bean id | What it does |
 |---|---|
-| `csvExportAllTask` | All fields, to `Automated Purger\Source Data\Extracted Tasks\TasksBackup.csv`. Your restore copy. |
+| `csvExportAllTask` | All fields, to `Source Data\Extracted Tasks\TasksBackup.csv`. Your restore copy. |
 | `csvExportIdTask` | Ids only, to `...\Extracted Tasks\TaskIdsToBeDeleted.csv`. |
 | `csvDeleteTask` | Deletes exactly those ids. Results land in `Automated Purger\Load Result\Task Deletion\`. |
 
@@ -179,10 +189,10 @@ that fails, nothing is extracted and nothing is deleted.
 
 | What | Where |
 |---|---|
-| Extracted CSVs | `Automated Purger\Source Data\Extracted Cases\` and `...\Extracted Tasks\` |
+| Extracted CSVs | `Source Data\Extracted Cases\` and `...\Extracted Tasks\` |
 | Case results | `Automated Purger\Load Result\Case Deletion\successExportCase<stamp>.csv` and `errorExportCase<stamp>.csv` |
 | Task results | `Automated Purger\Load Result\Task Deletion\successtask<stamp>.csv` and `errortask<stamp>.csv` |
-| Consumed CSVs | `PurgedExtracts\Archive_AutoPurgedExtracts_<MMDDYYYY HMM>\` — one folder shared by the whole run |
+| Consumed CSVs | `Automated Purger\Archive\Archive_AutoPurgedExtracts_<MMDDYYYY HMM>\` — one folder shared by the whole run |
 | Log | `Automated Purger\Log\purgedbat.log`, plus `<BeanId>.log` and `<BeanId>.soql` per job |
 
 The result filenames come from `process.outputSuccess` and `process.outputError` in
@@ -225,7 +235,7 @@ fields. Every extract and delete prints a notice before it starts. To confirm it
 alive, open a second Command Prompt:
 
 ```
-dir "C:\NLG\Automated Purger\Source Data\Extracted Cases\BuyingCustomerCaseBackup.csv"
+dir "D:\NLG\Source Data\Extracted Cases\BuyingCustomerCaseBackup.csv"
 ```
 
 A growing file means results are downloading. For a delete, Setup > Bulk Data Load
