@@ -1,0 +1,212 @@
+===============================================================================
+ RUN COMMANDS - one object at a time, in execution order
+===============================================================================
+ Two scripts, three objects:
+
+   purgedbat.bat   AUTOMATED PURGER          Case, Task   (deletes rows)
+   ccbat.bat       CONSERVATION CASE AUTO    CaseStaging__c (upserts rows)
+
+ Open a normal Command Prompt in the folder holding the batch file.
+ Run the commands in a block TOP TO BOTTOM. Check each one finished before
+ starting the next - the order is not a suggestion, it is what keeps a
+ delete from running without a backup.
+
+ /q at the end of any command means "do not pause when finished". Leave it
+ off when running by hand so you can read the result.
+
+===============================================================================
+ SECTION 1   AUTOMATED PURGER - purgedbat.bat
+===============================================================================
+ Retention rule for every query: CreatedDate older than the last 12 months.
+ Two objects, run as two independent sets. Case failing does not stop Task.
+
+-------------------------------------------------------------------------------
+ 1.1  EVERYTHING - both objects, gated, in the right order
+-------------------------------------------------------------------------------
+ This is the one to schedule. It runs all eight steps below for you and
+ stops a delete whose backup failed. Prefer it over running steps by hand.
+
+    purgedbat.bat
+
+ Unattended, for Task Scheduler:
+
+    purgedbat.bat /q
+
+-------------------------------------------------------------------------------
+ 1.2  CASE only - five commands, in this order
+-------------------------------------------------------------------------------
+ Steps 1-3 are the backups. They are your restore copy and must all succeed
+ before step 5 deletes anything.
+
+  step 1  back up Buying Customer cases
+          writes  D:\NLG\Source Data\Extracted Cases\BuyingCustomerCaseBackup.csv
+
+    purgedbat.bat csvExportBuyingCustomerCases
+
+  step 2  back up Selling Customer cases
+          writes  D:\NLG\Source Data\Extracted Cases\SellingCustomerCasesBackup.csv
+
+    purgedbat.bat csvExportSellingCustomerCases
+
+  step 3  back up Conservation cases
+          writes  D:\NLG\Source Data\Extracted Cases\ConservationCasesBackup.csv
+
+    purgedbat.bat csvExportConservationCasesCases
+
+  step 4  collect the ids to delete - ALL THREE record types in one file
+          writes  D:\NLG\Source Data\Extracted Cases\CaseIdToBeDeleted.csv
+
+    purgedbat.bat csvExportIdCases
+
+  step 5  delete exactly those ids
+          reads   D:\NLG\Source Data\Extracted Cases\CaseIdToBeDeleted.csv
+          results D:\NLG\Automated Purger\Load Result\Case Deletion\
+
+    purgedbat.bat csvDeleteCases
+
+  DO NOT SKIP STEPS 1-3. Step 4 collects ids across all three record types
+  at once, so step 5 cannot spare the record type whose backup failed. If
+  any backup errored, stop and fix it - do not run step 5.
+  Running these by hand gives you NO gating. The script will not stop you.
+
+-------------------------------------------------------------------------------
+ 1.3  TASK only - three commands, in this order
+-------------------------------------------------------------------------------
+  step 1  back up the tasks
+          writes  D:\NLG\Source Data\Extracted Tasks\TasksBackup.csv
+
+    purgedbat.bat csvExportAllTask
+
+  step 2  collect the ids to delete
+          writes  D:\NLG\Source Data\Extracted Tasks\TaskIdsToBeDeleted.csv
+
+    purgedbat.bat csvExportIdTask
+
+  step 3  delete exactly those ids
+          reads   D:\NLG\Source Data\Extracted Tasks\TaskIdsToBeDeleted.csv
+          results D:\NLG\Automated Purger\Load Result\Task Deletion\
+
+    purgedbat.bat csvDeleteTask
+
+-------------------------------------------------------------------------------
+ 1.4  COUNT FIRST, DELETE NOTHING
+-------------------------------------------------------------------------------
+ Every csvExport bean only runs a query and writes a CSV. Nothing in the org
+ changes. Use these to see how many rows the retention rule actually matches
+ before committing to a purge. The row count is printed when it finishes.
+
+    purgedbat.bat csvExportIdCases
+    purgedbat.bat csvExportIdTask
+
+ The exact query that ran is left in
+ D:\NLG\Automated Purger\Log\<BeanId>.soql
+
+-------------------------------------------------------------------------------
+ 1.5  RE-RUNNING A DELETE ON ITS OWN
+-------------------------------------------------------------------------------
+ A delete bean does not query anything. It deletes exactly the ids in its
+ CSV, and that CSV is MOVED into the archive as the delete consumes it. So
+ always write a fresh id file first:
+
+    purgedbat.bat csvExportIdTask
+    purgedbat.bat csvDeleteTask
+
+ If an id CSV is already sitting there, it is left over from a run that
+ stopped before its delete. Re-run the id extract if you are not certain -
+ the ids in that file decide what gets deleted.
+
+===============================================================================
+ SECTION 2   CONSERVATION CASE AUTOMATION - ccbat.bat
+===============================================================================
+ One real job. It UPSERTS CaseStaging__c, which is what creates the
+ Conservation Cases. It does not delete anything.
+
+-------------------------------------------------------------------------------
+ 2.1  THE JOB
+-------------------------------------------------------------------------------
+ Put the file here FIRST, or the run stops with "Source CSV not found":
+
+    D:\NLG\Source Data\Conservation Cases\Salesforce_DeathBenefit.csv
+
+ Then, one command - this is the whole job:
+
+    ccbat.bat
+
+ Unattended, for Task Scheduler:
+
+    ccbat.bat /q
+
+ Naming the bean explicitly does exactly the same thing:
+
+    ccbat.bat CaseStagingInsert
+
+ What it does, in order, on its own:
+    reads    D:\NLG\Source Data\Conservation Cases\Salesforce_DeathBenefit.csv
+    maps     D:\NLG\Conservation Case Automation\Config\CaseStagingMap.sdl
+    upserts  CaseStaging__c on PolicyNumber__c
+    results  D:\NLG\Conservation Case Automation\LoadResult\
+    archives the source CSV to
+             D:\NLG\Conservation Case Automation\Archive\Archive_<MMDDYYYY HMM>\
+
+ The source CSV is MOVED, not copied. To re-run, put a fresh file back.
+
+-------------------------------------------------------------------------------
+ 2.2  PROVE THE LOGIN WORKS FIRST - changes nothing
+-------------------------------------------------------------------------------
+ The test bean in the bean file. It extracts 10 Lead ids and writes them to
+ a file. It touches nothing in the org, so it is the safe way to confirm
+ clientcreds.json is right before pointing the real job at real data.
+
+    ccbat.bat csvExportLead
+
+ Note it writes to  D:\Conservation Case Automation\test\testExtract.csv
+ with no NLG in the path, unlike every other path in that bean file. That
+ is how the original was written. If the folder does not exist the run
+ fails - create it, or fix the path in the bean.
+
+===============================================================================
+ SECTION 3   BEFORE ANY OF THIS
+===============================================================================
+ CHECK WHICH ORG YOU ARE POINTED AT. Both scripts print the target org on
+ screen and to the log before anything is queried or written. Read it.
+
+ The org is the "org" key, and the login is the whole file, here:
+
+    purger    D:\NLG\Automated Purger\Config\clientcreds.json
+    cc job    D:\NLG\Conservation Case Automation\Config\clientcreds.json
+
+ That is the only file you edit to move between orgs. The bean files and
+ the SDLs carry no org information.
+
+ The retired Conservation Case bean pointed at https://login.salesforce.com,
+ i.e. PRODUCTION. Point "domain" at your sandbox while testing.
+
+ WHILE A JOB RUNS THE SCREEN STAYS BLANK. That is normal - the work happens
+ server-side and both output streams go to files. The Case backups are the
+ slowest, over 250 fields each. Waits up to 60 minutes.
+ DO NOT PRESS Ctrl-C. It kills the download, leaves a part-written file and
+ reports a healthy query as FAILED. On a backup that also blocks the delete.
+
+ To watch progress from a SECOND Command Prompt:
+
+    dir "D:\NLG\Source Data\Extracted Cases\BuyingCustomerCaseBackup.csv"
+
+===============================================================================
+ SECTION 4   EXIT CODES AND WHERE TO LOOK
+===============================================================================
+    0   everything completed, no failed rows
+    2   completed, but some rows failed - read the error CSV
+    1   the run stopped - read the log
+
+ Logs:
+    D:\NLG\Automated Purger\Log\purgedbat.log        the run
+    D:\NLG\Automated Purger\Log\<BeanId>.log         per job
+    D:\NLG\Conservation Case Automation\Log\ccbat.log
+    D:\NLG\Conservation Case Automation\Log\<BeanId>.log
+
+ Error CSVs:
+    D:\NLG\Automated Purger\Load Result\Case Deletion\error<stamp>.csv
+    D:\NLG\Automated Purger\Load Result\Task Deletion\error<stamp>.csv
+    D:\NLG\Conservation Case Automation\LoadResult\error<stamp>.csv
+
+===============================================================================
