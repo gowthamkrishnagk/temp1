@@ -459,6 +459,12 @@ if defined AUTHOK_%ORGALIAS% (
   call :log "Reusing the token fetched at the start of this run - no re-authentication"
   goto :authdone
 )
+call :haveauth "%ORGALIAS%"
+if not errorlevel 1 (
+  call :log "The sf CLI already holds a live login for alias '%ORGALIAS%' - reused it, no new Salesforce session"
+  goto :authdone
+)
+call :log "No usable login for alias '%ORGALIAS%' - fetching one for this job"
 call :fetchtoken "%SECRETS%" "%ORGALIAS%"
 if errorlevel 1 goto :jobdie
 goto :authdone
@@ -794,12 +800,50 @@ set "EA_ALIAS=%BEANALIAS%"
 if not defined EA_ALIAS call :jsonval "%EA_SECRETS%" org EA_ALIAS
 if not defined EA_ALIAS (set "ERRMSG=No org alias for bean '%~1' - add an 'org' key to %EA_SECRETS%" & exit /b 1)
 if defined AUTHOK_%EA_ALIAS% exit /b 0
-call :log "Fetching ONE client-credentials token for alias '%EA_ALIAS%'"
+REM  Before authenticating, ask whether the CLI is still logged in from an
+REM  earlier run. Skipping this is what produced a new Salesforce login on
+REM  every single execution of this script.
+call :haveauth "%EA_ALIAS%"
+if not errorlevel 1 (
+  set "AUTHOK_%EA_ALIAS%=1"
+  echo(  Reusing the login the sf CLI already holds for %EA_ALIAS% - no new Salesforce session
+  call :log "The sf CLI already holds a live login for alias '%EA_ALIAS%' - reused it, no OAuth round trip and no new login in Salesforce"
+  exit /b 0
+)
+call :log "No usable login for alias '%EA_ALIAS%' - fetching ONE client-credentials token"
 call :fetchtoken "%EA_SECRETS%" "%EA_ALIAS%"
 if errorlevel 1 exit /b 1
 set "AUTHOK_%EA_ALIAS%=1"
 echo(  Authenticated once for %EA_ALIAS%
 call :log "Logged in as alias '%EA_ALIAS%'"
+exit /b 0
+
+REM ===============================================================
+REM  :haveauth  <orgAlias>  - does the sf CLI ALREADY hold a usable login
+REM  for this alias?  0 = yes, reuse it.  1 = no, fetch one.
+REM
+REM  WHY THIS EXISTS. "sf org login access-token -p" PERSISTS the login to
+REM  disk, so it outlives the cmd process that fetched it. Without this
+REM  check every separate run of this script did its own OAuth round trip,
+REM  and every round trip is a new login row in Salesforce - three runs,
+REM  three logins, even though the first token was still perfectly good.
+REM  AUTHOK_<alias> could never see that: it is an environment variable, so
+REM  it only ever described the CURRENT process.
+REM
+REM  "sf org display" is a read. It resolves the stored auth and touches the
+REM  org, so an alias that was never authenticated, or whose token has since
+REM  expired or been revoked, exits non-zero and we fetch a fresh one. If it
+REM  ever reports healthy for a token the org then rejects, the
+REM  INVALID_SESSION_ID retry already in :runjob still recovers the run. So
+REM  this check can cost one wasted command. It cannot cost correctness.
+REM
+REM  Set FORCE_LOGIN=1 to skip the check and always authenticate, which is
+REM  what you want after rotating the client secret.
+REM ===============================================================
+:haveauth
+if defined FORCE_LOGIN exit /b 1
+call sf org display --target-org %~1 >nul 2>&1 <nul
+if errorlevel 1 exit /b 1
 exit /b 0
 
 REM ===============================================================

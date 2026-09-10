@@ -797,7 +797,11 @@ set "ORGALIAS=%BEANALIAS%"
 if not defined ORGALIAS if exist "%SECRETS%" call :jsonval "%SECRETS%" org ORGALIAS
 if not defined ORGALIAS set "ORGALIAS=%DEFAULTALIAS%"
 if not defined ORGALIAS (set "ERRMSG=No org alias for bean '%PROCESS%' - add sfdc.orgAlias to the bean, or an 'org' key to %SECRETS%, or set DEFAULTALIAS" & goto :exdie)
-if exist "%SECRETS%" if not defined AUTHOK_%ORGALIAS% call :fetchtoken "%SECRETS%" "%ORGALIAS%"
+REM  Reached on a direct call with no :ensureauth ahead of it. AUTHOK cannot
+REM  be set here that anyone else would see - this routine runs inside its
+REM  own setlocal - so :haveauth is what stops a second extract fetching a
+REM  second token.
+if exist "%SECRETS%" if not defined AUTHOK_%ORGALIAS% call :authonce "%SECRETS%" "%ORGALIAS%"
 
 REM ---------------- 4) keep whatever is already there ------------
 REM  The bean names ONE output path, so a second run would overwrite the
@@ -1064,7 +1068,12 @@ if defined AUTHOK_%ORGALIAS% (
   call :log "Reusing the single token fetched for alias '%ORGALIAS%' at the start of this run - no re-authentication"
   goto :authdone
 )
-call :log "No token cached for alias '%ORGALIAS%' - fetching one for this job"
+call :haveauth "%ORGALIAS%"
+if not errorlevel 1 (
+  call :log "The sf CLI already holds a live login for alias '%ORGALIAS%' - reused it, no new Salesforce session"
+  goto :authdone
+)
+call :log "No usable login for alias '%ORGALIAS%' - fetching one for this job"
 call :fetchtoken "%SECRETS%" "%ORGALIAS%"
 if errorlevel 1 goto :jobdie
 goto :authdone
@@ -1273,13 +1282,66 @@ if defined AUTHOK_%EA_ALIAS% (
   call :log "%~1: reusing the token already fetched for alias '%EA_ALIAS%' - no second authentication"
   exit /b 0
 )
-call :log "Fetching ONE client-credentials token for alias '%EA_ALIAS%' - every job in this run shares it"
+REM  Before authenticating, ask whether the CLI is still logged in from an
+REM  earlier run. Skipping this is what produced a new Salesforce login on
+REM  every single execution of this script.
+call :haveauth "%EA_ALIAS%"
+if not errorlevel 1 (
+  set "AUTHOK_%EA_ALIAS%=1"
+  echo(  Reusing the login the sf CLI already holds for %EA_ALIAS% - no new Salesforce session
+  call :log "%~1: the sf CLI already holds a live login for alias '%EA_ALIAS%' - reused it, no OAuth round trip and no new login in Salesforce"
+  exit /b 0
+)
+call :log "No usable login for alias '%EA_ALIAS%' - fetching ONE client-credentials token, and every job in this run shares it"
 call :fetchtoken "%EA_SECRETS%" "%EA_ALIAS%"
 if errorlevel 1 exit /b 1
 set "AUTHOK_%EA_ALIAS%=1"
 echo(  Authenticated once for %EA_ALIAS% - this login is reused by every job in the run
 call :log "Logged in as alias '%EA_ALIAS%'"
 exit /b 0
+
+REM ===============================================================
+REM  :haveauth  <orgAlias>  - does the sf CLI ALREADY hold a usable login
+REM  for this alias?  0 = yes, reuse it.  1 = no, fetch one.
+REM
+REM  WHY THIS EXISTS. "sf org login access-token -p" PERSISTS the login to
+REM  disk, so it outlives the cmd process that fetched it. Without this
+REM  check every separate run of this script did its own OAuth round trip,
+REM  and every round trip is a new login row in Salesforce - three runs,
+REM  three logins, even though the first token was still perfectly good.
+REM  AUTHOK_<alias> could never see that: it is an environment variable, so
+REM  it only ever described the CURRENT process.
+REM
+REM  "sf org display" is a read. It resolves the stored auth and touches the
+REM  org, so an alias that was never authenticated, or whose token has since
+REM  expired or been revoked, exits non-zero and we fetch a fresh one. If it
+REM  ever reports healthy for a token the org then rejects, the
+REM  INVALID_SESSION_ID retry already in :runjob and :runjobextract still
+REM  recovers the run. So this check can cost one wasted command. It cannot
+REM  cost correctness.
+REM
+REM  Set FORCE_LOGIN=1 to skip the check and always authenticate, which is
+REM  what you want after rotating the client secret.
+REM ===============================================================
+:haveauth
+if defined FORCE_LOGIN exit /b 1
+call sf org display --target-org %~1 >nul 2>&1 <nul
+if errorlevel 1 exit /b 1
+exit /b 0
+
+REM ===============================================================
+REM  :authonce  <credentialsFile> <orgAlias>  - fetch a token only if the
+REM  CLI does not already hold a usable login for the alias. Exists so the
+REM  extract path gets the same treatment as everything else.
+REM ===============================================================
+:authonce
+call :haveauth "%~2"
+if not errorlevel 1 (
+  call :log "The sf CLI already holds a live login for alias '%~2' - reused it"
+  exit /b 0
+)
+call :fetchtoken "%~1" "%~2"
+exit /b %ERRORLEVEL%
 
 REM ===============================================================
 REM  :fetchtoken  <credentialsFile> <orgAlias>  - exactly one OAuth
