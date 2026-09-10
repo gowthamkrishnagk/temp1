@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+<!-- Agency and Agent only, lifted from the UAT bean unchanged.
+     No sfdc.endpoint, no sfdc.username, no sfdc.password and no
+     process.encryptionKeyFile - the login comes from
+     C:\NLG\Config\clientcreds.json and nothing else. -->
+
+<bean id="AgencyUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert Agency on Master Agency ID.</description>
+    <property name="name" value="AgencyUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Account"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_Agency_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AgencyMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\Agency\Agency.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+
+<bean id="AgentActiveUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert active Agents on Master Agent ID.</description>
+    <property name="name" value="AgentActiveUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Contact"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_Agent_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AgentMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\Agent\Agent-Active.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+
+<bean id="AgentTerminatedUpsert" class="com.salesforce.dataloader.process.ProcessRunner" scope="singleton">
+    <description>Upsert terminated Agents on Master Agent ID.</description>
+    <property name="name" value="AgentTerminatedUpsert"/>
+    <property name="configOverrideMap">
+        <map>
+            <entry key="sfdc.entity" value="Contact"/>
+            <entry key="process.operation" value="upsert"/>
+            <entry key="sfdc.externalIdField" value="Master_Agent_ID__c"/>
+            <entry key="process.mappingFile" value="C:\NLG\Config\AgentMapping.sdl"/>
+            <entry key="dataAccess.name" value="C:\NLG\Source Data\Agent\Agent-Terminated.csv"/>
+            <entry key="dataAccess.type" value="csvRead"/>
+        </map>
+    </property>
+</bean>
+
+</beans>
